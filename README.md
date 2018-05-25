@@ -8,9 +8,10 @@ At the second level, the length is shorter than reality of x units.
 ## need to be done:
 
 Need to be done next:
-- [ ] support array
+- [x] support array
 - [x] correct bug on display
 - [ ] prevent multiple element with same key in one object
+- [ ] manage integers
 - [ ] add function to get one element
 - [ ] add function to set on element
  -[ ] add function to print JSON in file/string 
@@ -28,29 +29,14 @@ int main ( void )
 {
 	json_el *data = NULL;
 	uint32_t dataLength = 0;
-	uint8_t i = 0;
 
-	// while ( ++i )
+
+	if ( jsonParseFile ( "file.json", &data, &dataLength ) )
 	{
-		if ( data )
-		{
-			jsonFree ( &data, dataLength );
-			data = NULL;
-			dataLength = 0;
-		}
-
-		printf ( "\e[A\e[2K");
-		printf ( "test n°%3d ", i );
-		if ( jsonParseFile ( "file.json", &data, &dataLength ) )
-		{
-			printf ( "error\n");
-		}
-		printf ( "done\n");
-
-		usleep ( 10 );
+		printf ( "error\n");
 	}
 	
-	jsonPrint ( data, 0 );
+	jsonPrint ( data, 0, 0 );
 
 	if ( data )
 	{

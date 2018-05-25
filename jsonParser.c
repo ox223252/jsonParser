@@ -27,54 +27,6 @@
 static uint32_t jsonParseArray ( const char * content, uint64_t * const contentId, uint32_t numObj, json_el ** out, uint32_t * outLength );
 static uint32_t jsonParseObject ( const char * content, uint64_t * const contentId, uint32_t numObj, json_el ** out, uint32_t * outLength );
 
-static void pAddr( json_el * data, uint32_t id )
-{
-	static uint8_t indent = 0;
-	uint32_t i, j;
-
-	printf ( "%s", __func__ );
-	for ( j = 0; j < indent + 1; j++ )
-	{
-		printf ( "\t" );
-	}
-#pragma GCC diagnostic ignored "-Wformat"
-	printf ( "data    @ \e[1;31m%#x\e[0m\n", data );
-
-	printf ( "%s", __func__ );
-	for ( j = 0; j < indent + 1; j++ )
-	{
-		printf ( "\t" );
-	}
-	printf ( "parrent @ \e[1;32m%#x\e[0m\n", data->parent );
-#pragma GCC diagnostic pop "Wformat"
-
-	printf ( "%s", __func__ );
-	for ( j = 0; j < indent + 1; j++ )
-	{
-		printf ( "\t" );
-	}
-	printf ( "length %d\n", data->length );
-
-	for ( i = 0; i < data->length; i++ )
-	{
-		printf ( "%s", __func__ );
-		for ( j = 0; j < indent + 1; j++ )
-		{
-			printf ( "\t" );
-		}
-		printf ( "type %d : %s\n",
-			data->type[ i ], 
-			data->key[ i ] );
-
-		if ( data->type[ i ] == jT( obj ) )
-		{
-			indent++;
-			pAddr( data, i );
-			indent--;
-		}
-	}
-}
-
 static uint32_t getELement ( const char * str, void ** const value, JSON_TYPE type, uint64_t * const id )
 {
 	uint32_t i = 0;
@@ -125,24 +77,6 @@ static uint32_t jsonParseArray ( const char * content, uint64_t * const contentI
 	char str[ 256 ];
 	double value;
 	uint32_t i; // loop counter
-
-	printf ( "array not available, data removed : \n" );
-	while ( content [ *contentId ] != ']' )
-	{
-		printf ( "%c", content [ *contentId ] );
-
-		(*contentId)++;
-		
-		if ( content [ *contentId ] == '[' )
-		{
-			jsonParseArray ( content, contentId, numObj, out, outLength );
-		}
-	}
-	printf ( "%c", content [ *contentId ] );
-	printf ( "\n" );
-	return ( 0 );
-
-	printf ( "%s\n", __func__ );
 
 	(*out)[ numObj ].key = NULL;
 
