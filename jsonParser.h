@@ -58,7 +58,7 @@ json_el;
 
 uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length );
 
-uint32_t jsonPrint ( json_el * data, uint8_t indent );
+uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent );
 
 uint32_t jsonFree ( json_el ** data, uint32_t length );
 

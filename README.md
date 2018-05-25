@@ -9,8 +9,8 @@ At the second level, the length is shorter than reality of x units.
 
 Need to be done next:
 - [ ] support array
-- [ ] correct bug on display
-- [ ] prevent multiple element with same key
+- [x] correct bug on display
+- [ ] prevent multiple element with same key in one object
 - [ ] add function to get one element
 - [ ] add function to set on element
  -[ ] add function to print JSON in file/string 
