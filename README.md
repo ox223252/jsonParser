@@ -1,10 +1,6 @@
 # jsonParser
 lib to manage json
 
-## bug:
-If you execute the main test programm, you will see only 2 levels of json instead of 3 or 4 levels existing.
-At the second level, the length is shorter than reality of x units.
-
 ## need to be done:
 
 Need to be done next:
