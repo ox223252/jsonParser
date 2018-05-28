@@ -24,7 +24,7 @@
 
 #include "jsonParser.h"
 
-static uint32_t getELement ( const char * str, void ** const value, JSON_TYPE type, uint64_t * const id )
+static uint32_t getELement ( const char * str, void ** const value, JSON_TYPE type, uint32_t * const id )
 {
 	uint32_t i = 0;
 
@@ -75,7 +75,7 @@ static uint32_t getELement ( const char * str, void ** const value, JSON_TYPE ty
 	return ( 0 );
 }
 
-static uint32_t jsonParseObject ( const char * content, uint64_t * const contentId, uint32_t numObj, json_el ** out, uint32_t * outLength )
+static uint32_t jsonParseObject ( const char * content, uint32_t * const contentId, uint32_t numObj, json_el ** out, uint32_t * outLength )
 {
 	void * tmp = NULL;
 	char str[ 256 ];
@@ -327,119 +327,32 @@ static uint32_t jsonParseObject ( const char * content, uint64_t * const content
 	return ( 0 );
 }
 
-uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
+static uint32_t jsonVerifyFormat ( char * const str, uint64_t * const strSize )
 {
-	FILE * f = NULL;
-	uint64_t fileSize = 0;
-	char * fileContent = NULL;
+	uint64_t i = 0; // loop counter
+	uint8_t string = 0; // flag to store if char is in string or not
 	uint32_t bracketLvl = 0;
 	uint32_t squareLvl = 0;
-
-	char str[ 10 ];
-
-	json_el *current;
-
-	uint64_t i = 0; // loop counter
-	uint64_t j = 0; // loop counter
-
-	struct
-	{
-		uint8_t string:1,
-			value:1,
-			array:1,
-			obj:1,
-			key:1;
-	}
-	flag = { 0 };
-
-	if ( !out ||
-		*out ||
-		!length ||
-		*length )
-	{ // out pointer is null or *out pointer is not null
-		return ( __LINE__ );
-	}
-
-	f = fopen ( file, "r" );
-	if ( !f )
-	{ // file not open
-		return ( __LINE__ );
-	}
-
-	// get file size
-	fseek ( f, 0, SEEK_END );
-	fileSize = ftell ( f );
-
-	fseek ( f, 0, SEEK_SET );
-
-	fileContent = malloc ( fileSize );
-	if ( !fileContent )
-	{
-		fclose ( f );
-		return ( __LINE__ );
-	}
-
-	if ( fread ( fileContent, 1, fileSize, f ) != fileSize )
-	{ // not read all
-		fclose ( f );
-		free ( fileContent );
-		return ( __LINE__ );
-	}
-
-	// not need to keep file open
-	fclose ( f );
-
-	// remove useless bytes (space/tab/newlines)
-	for ( i = fileSize - 1; i > 0; i-- )
-	{
-		if ( flag.string &&
-			fileContent[ i ] != '"' )
-		{ // if it's a string don't remove space or brake line
-			continue;
-		}
-
-		if ( fileContent[ i ] == '"' )
-		{ // if it's beging or end of string store information
-			if ( flag.string &&
-				( fileContent[ i -1 ] == '\\' ) )
-			{
-				continue;
-			}
-			flag.string ^= 0x01;
-			continue;
-		}
-
-		if ( ( fileContent[ i ] == ' ' ) ||
-			( fileContent[ i ] == '\n' ) ||
-			( fileContent[ i ] == '\t' ) )
-		{ // else remove space, brake line, or tab
-			for ( j = i; j < fileSize - 1; j++ )
-			{
-				fileContent[ j ] = fileContent[ j + 1 ];
-			}
-			fileContent[ j ] = '\0';
-			fileSize--;
-		}
-	}
+	char tmp[ 6 ];
 
 	// verify format
-	for ( i = 0; i < fileSize; i++ )
+	for ( i = 0; i < (*strSize); i++ )
 	{
-		if ( flag.string &&
-			fileContent[ i ] != '"' )
+		if ( string &&
+			str[ i ] != '"' )
 		{
 			continue;
 		}
-		switch ( fileContent[ i ] )
+		switch ( str[ i ] )
 		{
 			case '"':
 			{ // set if next element is in stirng or not
-				if ( flag.string &&
-					( fileContent[ i -1 ] == '\\' ) )
+				if ( string &&
+					( str[ i -1 ] == '\\' ) )
 				{
 					continue;
 				}
-				flag.string ^= 0x01;
+				string ^= 0x01;
 				break;
 			}
 			case '{':
@@ -465,48 +378,102 @@ uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
 			case ':':
 			case ',':
 			{
-				if ( sscanf ( &fileContent[ i + 1 ], "%[true|false]", str ) )
+				if ( sscanf ( &str[ i + 1 ], "%[true|false]", tmp ) )
 				{ // boolean
-					i += strlen ( str );
+					i += strlen ( tmp );
 				}
-				else if ( ( fileContent[ i + 1 ] != '"' ) && // string
-					( fileContent[ i + 1 ] != '.' ) && // number
-					( fileContent[ i + 1 ] != '{' ) && // obj
-					( fileContent[ i + 1 ] != '[' ) && // array
-					( ( fileContent[ i + 1 ] < '0' ) ||
-					( fileContent[ i + 1 ] > '9' ) ) )
+				else if ( ( str[ i + 1 ] != '"' ) && // string
+					( str[ i + 1 ] != '.' ) && // number
+					( str[ i + 1 ] != '{' ) && // obj
+					( str[ i + 1 ] != '[' ) && // array
+					( ( str[ i + 1 ] < '0' ) ||
+					( str[ i + 1 ] > '9' ) ) )
 				{
-					printf ( "%d: format problem ...%c%c%c...\n", __LINE__, fileContent[ i - 1 ], fileContent[ i ],fileContent[ i + 1 ] );
-					printf ( "%s\n", fileContent );
-					free ( fileContent );
+					printf ( "%d: format problem ...%c%c%c...\n", __LINE__, str[ i - 1 ], str[ i ],str[ i + 1 ] );
+					printf ( "%s\n", str );
+					free ( str );
 					return ( __LINE__ );
 				}
 				break;
 			}
 			default:
 			{
-				if ( ( fileContent[ i ] != '.' ) && // number
-					( ( fileContent[ i ] < '0' ) || // number
-					( fileContent[ i ] > '9' ) ) )
+				if ( ( str[ i ] != '.' ) && // number
+					( ( str[ i ] < '0' ) || // number
+					( str[ i ] > '9' ) ) )
 				{
-					printf ( "%d: format problem ...%c%c%c...\n", __LINE__, fileContent[ i - 1 ], fileContent[ i ], fileContent[ i + 1 ] );
-					free ( fileContent );
+					printf ( "%d: format problem ...%c%c%c...\n", __LINE__, str[ i - 1 ], str[ i ], str[ i + 1 ] );
+					free ( str );
 					return ( __LINE__ );
 				}
 				break;
 			}
 		}
 	}
+	return ( 0 );
+}
 
-	if ( ( bracketLvl != 0 ) ||
-		( squareLvl != 0 ) ||
-		( flag.string ) )
+static uint32_t jsonRemoveSpaces ( char * const str, uint64_t * const strSize )
+{
+	uint64_t i = 0; // loop counter
+	uint64_t j = 0; // loop counter
+	uint8_t string = 0; // flag to store if char is in string or not
+
+	if ( !str ||
+		!strSize )
 	{
-		printf ( "format problem [ ] = %d, { } = %d \" \" = %s\n",
-			squareLvl,
-			bracketLvl,
-			( flag.string )? "error" : "ok" );
-		free ( fileContent );
+		return ( __LINE__ );
+	}
+
+	// remove useless bytes (space/tab/newlines)
+	for ( i = (*strSize) - 1; i > 0; i-- )
+	{
+		if ( string &&
+			str[ i ] != '"' )
+		{ // if it's a string don't remove space or brake line
+			continue;
+		}
+
+		if ( str[ i ] == '"' )
+		{ // if it's beging or end of string store information
+			if ( string &&
+				( str[ i -1 ] == '\\' ) )
+			{
+				continue;
+			}
+			string ^= 0x01;
+			continue;
+		}
+
+		if ( ( str[ i ] == ' ' ) ||
+			( str[ i ] == '\n' ) ||
+			( str[ i ] == '\t' ) )
+		{ // else remove space, brake line, or tab
+			for ( j = i; j < (*strSize) - 1; j++ )
+			{
+				str[ j ] = str[ j + 1 ];
+			}
+			str[ j ] = '\0';
+			(*strSize)--;
+		}
+	}
+	return ( 0 );
+}
+
+uint32_t jsonParseString ( char * const str, json_el ** out, uint32_t * length )
+{
+	uint32_t objId = 0;
+	uint64_t strSize = strlen ( str );
+
+	if ( jsonRemoveSpaces ( str, &strSize ) )
+	{
+		return ( __LINE__ );
+	}
+
+	if ( jsonVerifyFormat ( str, &strSize ) )
+	{
+		printf ( "format problem width brackets\n" );
+		free ( str );
 		return ( __LINE__ );
 	}
 
@@ -514,7 +481,7 @@ uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
 
 	if ( !*out )
 	{
-		free ( fileContent );
+		free ( str );
 		return ( __LINE__ );
 	}
 	(*length)++;
@@ -524,11 +491,64 @@ uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
 	(*out)->length = 0;
 	(*out)->parent = NULL;
 
-	i = 0;
-	jsonParseObject ( fileContent, &i, 0, out, length );
+	jsonParseObject ( str, &objId, 0, out, length );
 
-	free ( fileContent );
 	return ( 0 );
+}
+
+uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
+{
+	FILE * f = NULL;
+	uint64_t fileSize = 0;
+	char * fileContent = NULL;
+
+	char str[ 10 ];
+
+	json_el *current;
+
+	uint32_t ret = 0; // return value
+
+	if ( !out ||
+		*out ||
+		!length ||
+		*length )
+	{ // out pointer is null or *out pointer is not null
+		return ( __LINE__ );
+	}
+
+	f = fopen ( file, "r" );
+	if ( !f )
+	{ // file not open
+		return ( __LINE__ );
+	}
+
+	// get file size
+	fseek ( f, 0, SEEK_END );
+	fileSize = ftell ( f );
+
+	fseek ( f, 0, SEEK_SET );
+
+	fileContent = malloc ( fileSize + 1 );
+	if ( !fileContent )
+	{
+		fclose ( f );
+		return ( __LINE__ );
+	}
+
+	if ( fread ( fileContent, 1, fileSize, f ) != fileSize )
+	{ // not read all
+		fclose ( f );
+		free ( fileContent );
+		return ( __LINE__ );
+	}
+
+	fileContent[ fileSize ] = '\0';
+
+	// not need to keep file open
+	fclose ( f );
+	ret = jsonParseString ( fileContent, out, length );
+	free ( fileContent );
+	return ( ret );
 }
 
 uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent )

@@ -56,6 +56,8 @@ typedef struct __json_el
 }
 json_el;
 
+uint32_t jsonParseString ( char * const str, json_el ** out, uint32_t * length );
+
 uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length );
 
 uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent );
