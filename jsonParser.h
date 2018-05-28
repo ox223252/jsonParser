@@ -62,4 +62,6 @@ uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent );
 
 uint32_t jsonFree ( json_el ** data, uint32_t length );
 
+void * jsonGet ( const json_el * const data, const uint32_t id, const char * const key, void ** const value, JSON_TYPE * const type );
+
 #endif

@@ -695,13 +695,38 @@ uint32_t jsonFree ( json_el ** data, uint32_t length )
 	return ( 0 );
 }
 
-void * jsonGet ( json_el *  data, uint32_t id, JSON_TYPE type )
+void * jsonGet ( const json_el * const data, const uint32_t id, const char * const key, void ** const value, JSON_TYPE * const type )
 {
-	uint32_t i = 0; // loop counter
+	uint32_t i = 0;
+	void * tmp = NULL;
+		
 
 	for ( i = 0; i < data[ id ].length; i++ )
 	{
+		if ( !strcmp ( data[ id ].key[ i ], key ) )
+		{
+			if ( type )
+			{ // if type pointer defined return type value
+				*type = data[ id ].type[ i ];
+			}
 
+			if ( !value )
+			{ // if value NULL
+				return ( data[ id ].value[ i ] );
+			}
+
+			*value = data[ id ].value[ i ];
+			return ( *value );
+		}
+		else if ( data[ id ].type[ i ] == jT ( obj ) )
+		{
+			tmp = jsonGet ( data, *( uint32_t * )data[ id ].value[ i ], key, value, type );
+
+			if ( tmp )
+			{
+				return ( tmp );
+			}
+		}
 	}
 	return ( NULL );
 }
