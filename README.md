@@ -6,11 +6,14 @@ lib to manage json
 Need to be done next:
 - [x] support array
 - [x] correct bug on display
-- [ ] prevent multiple element with same key in one object
+- [x] prevent multiple element with same key in one object
 - [ ] manage integers
-- [ ] add function to get one element
-- [ ] add function to set on element
- -[ ] add function to print JSON in file/string 
+- [ ] add function to parse string
+- [x] add function to get one element
+- [ ] add function to set an element
+- [ ] add function to print JSON in file/string
+- [ ] add documentation in header
+- [ ] **verify memory leak with valgrind**
 
 ## example:
 ### main.c:
@@ -26,6 +29,9 @@ int main ( void )
 	json_el *data = NULL;
 	uint32_t dataLength = 0;
 
+	void * value = NULL;
+	JSON_TYPE type = jT ( undefined );
+
 
 	if ( jsonParseFile ( "file.json", &data, &dataLength ) )
 	{
@@ -33,6 +39,10 @@ int main ( void )
 	}
 	
 	jsonPrint ( data, 0, 0 );
+
+	jsonGet ( data, 0, "h1", &value, &type );
+
+	printf ( "h1 value  = %s type : %d\n", (char *)value, type );
 
 	if ( data )
 	{
@@ -51,6 +61,7 @@ int main ( void )
 	"a":"bob",
 	"b":"pour avoir un b",
 	"c":"testé",
+	"b":"second B\"",
 	"d":12,
 	"e":true,
 	"f":false,
@@ -65,6 +76,7 @@ int main ( void )
 		"g6":false,
 		"g7":
 		{
+
 			"g71":"ici",
 			"g72":{
 				"g721":"B52",
@@ -74,7 +86,9 @@ int main ( void )
 		},
 		"g8":
 		{
-			"g81":"rien"
+			"g81":"rien",
+			"g82":{
+			}
 		}
 	},
 	"h":{
@@ -85,6 +99,8 @@ int main ( void )
 	"k":
 	[
 		1,2,3,4,5,6,7,8,9,10,11,12,13
-	]
+	],
+	"g":"poney"
 }
+
 ```
