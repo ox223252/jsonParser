@@ -24,11 +24,16 @@
 
 #include "jsonParser.h"
 
-static uint32_t jsonParseObject ( const char * content, uint64_t * const contentId, uint32_t numObj, json_el ** out, uint32_t * outLength );
-
 static uint32_t getELement ( const char * str, void ** const value, JSON_TYPE type, uint64_t * const id )
 {
 	uint32_t i = 0;
+
+	if ( !str ||
+		!value ||
+		!id )
+	{
+		return ( __LINE__ );
+	}
 
 	switch ( type )
 	{
@@ -40,10 +45,10 @@ static uint32_t getELement ( const char * str, void ** const value, JSON_TYPE ty
 
 			// get str size
 			i = 0;
-			while ( str[ i ] != '\"' && 
+			while ( str[ i ] != '\"' &&
 				i < 0xfffffffe )
 			{
-				if ( str[ i ] == '\\' && 
+				if ( str[ i ] == '\\' &&
 					str[ i + 1 ] == '\"' )
 				{
 					i += 2;
@@ -75,16 +80,13 @@ static uint32_t jsonParseObject ( const char * content, uint64_t * const content
 	void * tmp = NULL;
 	char str[ 256 ];
 	double value;
+	uint32_t nextValueId = 0;
 	uint32_t i, j; // loop counter
-	struct 
-	{
-		uint8_t array:1;
-	}
-	flag = { 0 };
 
-	if ( (*out)[ numObj ].parent )
+
+	if ( content [ *contentId ] == '[' )
 	{
-		flag.array = (*out)[ numObj ].parent->type[ (*out)[ numObj ].parent->length ] == jT( array );
+		(*out)[ numObj ].key = NULL;
 	}
 
 	switch ( content [ *contentId ] )
@@ -100,60 +102,97 @@ static uint32_t jsonParseObject ( const char * content, uint64_t * const content
 					// remove '{' or ','
 					(*contentId)++;
 
-					if ( flag.array )
-					{
-						(*out)[ numObj ].key = NULL;
-					}
-					else
-					{
+					nextValueId = (*out)[ numObj ].length;
+					if ( (*out)[ numObj ].key ||
+						( content [ (*contentId) - 1 ] == '{' ) )
+					{ // for obj manage keys
 						if ( sscanf ( &content[ *contentId ], "\"%256[^\"]\":", str ) == 0 )
 						{
 							return ( __LINE__ );
 						}
-					
-						// get key of next element
-						tmp = realloc ( (*out)[ numObj ].key, sizeof ( char * ) * (*out)[ numObj ].length + 1 );
-						if ( !tmp )
-						{
-							return ( __LINE__ );
-						}
-						(*out)[ numObj ].key = tmp;
-						tmp = NULL;
 
-						// init obj
-						(*out)[ numObj ].key[ (*out)[ numObj ].length ] = NULL;
-
-						tmp = malloc ( strlen ( str ) + 1 );
-						if ( !tmp )
-						{
-							return ( __LINE__ );
+						if ( (*out)[ numObj ].key )
+						{ // if key table is set  -> we'll try to find new key in existing table
+							for ( nextValueId = 0; nextValueId < (*out)[ numObj ].length; nextValueId++ )
+							{
+								if ( !strcmp ( str, (*out)[ numObj ].key[ nextValueId ] ) )
+								{ // new key already exist
+									break;
+								}
+							}
 						}
-						(*out)[ numObj ].key[ (*out)[ numObj ].length ] = tmp;
-						strcpy ( (*out)[ numObj ].key[ (*out)[ numObj ].length ], str );
-						tmp = NULL;
-						
+
+						if ( nextValueId == (*out)[ numObj ].length )
+						{ // if next id is last -> key is not in the table
+							// get key of next element
+							tmp = realloc ( (*out)[ numObj ].key, sizeof ( char * ) * (*out)[ numObj ].length + 1 );
+							if ( !tmp )
+							{
+								return ( __LINE__ );
+							}
+							(*out)[ numObj ].key = tmp;
+							tmp = NULL;
+
+							(*out)[ numObj ].key[ nextValueId ] = NULL;
+						}
+
+						if ( !(*out)[ numObj ].key[ nextValueId ] )
+						{ // if next key is null -> key not exist -> need to be created
+							// init obj
+							tmp = malloc ( strlen ( str ) + 1 );
+							if ( !tmp )
+							{
+								return ( __LINE__ );
+							}
+							(*out)[ numObj ].key[ nextValueId ] = tmp;
+							strcpy ( (*out)[ numObj ].key[ nextValueId ], str );
+							tmp = NULL;
+						}
+
 						// remove '"<str>":'
 						(*contentId) += strlen ( str ) + 3;
 					}
 
-					// get next value
-					tmp = realloc ( (*out)[ numObj ].value, sizeof ( void * ) * (*out)[ numObj ].length + 1 );
-					if ( !tmp )
-					{
-						return ( __LINE__ );
-					}
-					(*out)[ numObj ].value = tmp;
-					tmp = NULL;
+					if ( nextValueId ==  (*out)[ numObj ].length )
+					{ // it's a new object
+						// get next value
+						tmp = realloc ( (*out)[ numObj ].value, sizeof ( void * ) * (*out)[ numObj ].length + 1 );
+						if ( !tmp )
+						{
+							return ( __LINE__ );
+						}
+						(*out)[ numObj ].value = tmp;
+						tmp = NULL;
 
-					// set next element type
-					tmp = realloc ( (*out)[ numObj ].type, sizeof ( uint8_t ) * (*out)[ numObj ].length + 1 );
-					if ( !tmp )
-					{
-						return ( __LINE__ );
+						// set next element type
+						tmp = realloc ( (*out)[ numObj ].type, sizeof ( uint8_t ) * (*out)[ numObj ].length + 1 );
+						if ( !tmp )
+						{
+							return ( __LINE__ );
+						}
+						(*out)[ numObj ].type = tmp;
+						(*out)[ numObj ].type[ (*out)[ numObj ].length ] = jT( undefined );
+						tmp = NULL;
 					}
-					(*out)[ numObj ].type = tmp;
-					(*out)[ numObj ].type[ (*out)[ numObj ].length ] = jT( undefined );
-					tmp = NULL;
+					else
+					{
+						switch ( (*out)[ numObj ].type[ nextValueId ] )
+						{
+							case jT ( bool ):
+							case jT ( float ):
+							case jT ( str ):
+							{
+								free ( (*out)[ numObj ].value[ nextValueId ] );
+								(*out)[ numObj ].value[ nextValueId ] = NULL;
+								break;
+							}
+							case jT ( obj ):
+							case jT ( array ):
+							{
+								break;
+							}
+						}
+					}
 
 					switch ( content [ *contentId ] )
 					{
@@ -162,13 +201,13 @@ static uint32_t jsonParseObject ( const char * content, uint64_t * const content
 						{
 							if ( content [ *contentId ] == '{')
 							{
-								(*out)[ numObj ].type[ (*out)[ numObj ].length ] = jT( obj );
+								(*out)[ numObj ].type[ nextValueId ] = jT( obj );
 							}
 							else
 							{
-								(*out)[ numObj ].type[ (*out)[ numObj ].length ] = jT( array );
+								(*out)[ numObj ].type[ nextValueId ] = jT( array );
 							}
-							
+
 							(*outLength)++;
 
 							tmp = realloc ( *out, sizeof ( json_el ) * (*outLength) );
@@ -190,10 +229,10 @@ static uint32_t jsonParseObject ( const char * content, uint64_t * const content
 							{
 								return ( __LINE__ );
 							}
-							(*out)[ numObj ].value[ (*out)[ numObj ].length ] = tmp;
+							(*out)[ numObj ].value[ nextValueId ] = tmp;
 							tmp = NULL;
 
-							*( uint32_t * )((*out)[ numObj ].value[ (*out)[ numObj ].length ]) = (*outLength) - 1;
+							*( uint32_t * )((*out)[ numObj ].value[ nextValueId ]) = (*outLength) - 1;
 							(*out)[ (*outLength) - 1 ].parent = &(*out)[ numObj ];
 
 							if ( jsonParseObject ( content, contentId, (*outLength) - 1, out, outLength ) )
@@ -205,11 +244,11 @@ static uint32_t jsonParseObject ( const char * content, uint64_t * const content
 						}
 						case '"':
 						{ // str element
-							(*out)[ numObj ].type[ (*out)[ numObj ].length ] = jT( str );
+							(*out)[ numObj ].type[ nextValueId ] = jT( str );
 
-							getELement ( 
-								&content [ *contentId ], 
-								&((*out)[ numObj ].value[ (*out)[ numObj ].length ]),
+							getELement (
+								&content [ *contentId ],
+								&((*out)[ numObj ].value[ nextValueId ]),
 								jT( str ),
 								contentId );
 							break;
@@ -218,25 +257,25 @@ static uint32_t jsonParseObject ( const char * content, uint64_t * const content
 						{ // number of boolean
 							if ( sscanf ( &content [ *contentId ], "%[true|false]", str ) )
 							{ // boolean
-								(*out)[ numObj ].type[ (*out)[ numObj ].length ] = jT( bool );
+								(*out)[ numObj ].type[ nextValueId ] = jT( bool );
 								// get next value
 								tmp = malloc ( sizeof ( uint8_t ) );
 								if ( !tmp )
 								{
 									return ( __LINE__ );
 								}
-								(*out)[ numObj ].value[ (*out)[ numObj ].length ] = tmp;
+								(*out)[ numObj ].value[ nextValueId ] = tmp;
 								tmp = NULL;
 
 
-								*( uint8_t * )( (*out)[ numObj ].value[ (*out)[ numObj ].length ] ) = ( strcmp ( "true", str )?1:0 );
+								*( uint8_t * )( (*out)[ numObj ].value[ nextValueId ] ) = ( strcmp ( "true", str )?1:0 );
 								(*contentId) += strlen ( str );
 							}
 							else if ( ( content [ *contentId ] >= '0' ) &&
 								( content [ *contentId ] <= '9' ) ||
 								( content [ *contentId ] == '.' ) )
 							{ // it's a number
-								(*out)[ numObj ].type[ (*out)[ numObj ].length ] = jT( float );
+								(*out)[ numObj ].type[ nextValueId ] = jT( float );
 
 								if ( !sscanf ( &content [ *contentId ], "%lf", &value ) )
 								{
@@ -249,10 +288,10 @@ static uint32_t jsonParseObject ( const char * content, uint64_t * const content
 								{
 									return ( __LINE__ );
 								}
-								(*out)[ numObj ].value[ (*out)[ numObj ].length ] = tmp;
+								(*out)[ numObj ].value[ nextValueId ] = tmp;
 								tmp = NULL;
 
-								*( double * )( (*out)[ numObj ].value[ (*out)[ numObj ].length ] ) = value;
+								*( double * )( (*out)[ numObj ].value[ nextValueId ] ) = value;
 
 								while ( ( content [ *contentId ] >= '0' ) &&
 									( content [ *contentId ] <= '9' ) ||
@@ -264,14 +303,16 @@ static uint32_t jsonParseObject ( const char * content, uint64_t * const content
 						}
 					}
 
-
-					(*out)[ numObj ].length++;
+					if ( nextValueId == (*out)[ numObj ].length )
+					{
+						(*out)[ numObj ].length++;
+					}
 				}
 				while ( content [ *contentId ] == ',' );
 			}
 			else
 			{
-				(*contentId) += 2;
+				(*contentId)++;
 			}
 
 			break;
@@ -351,10 +392,27 @@ uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
 	// remove useless bytes (space/tab/newlines)
 	for ( i = fileSize - 1; i > 0; i-- )
 	{
+		if ( flag.string &&
+			fileContent[ i ] != '"' )
+		{ // if it's a string don't remove space or brake line
+			continue;
+		}
+
+		if ( fileContent[ i ] == '"' )
+		{ // if it's beging or end of string store information
+			if ( flag.string &&
+				( fileContent[ i -1 ] == '\\' ) )
+			{
+				continue;
+			}
+			flag.string ^= 0x01;
+			continue;
+		}
+
 		if ( ( fileContent[ i ] == ' ' ) ||
 			( fileContent[ i ] == '\n' ) ||
 			( fileContent[ i ] == '\t' ) )
-		{
+		{ // else remove space, brake line, or tab
 			for ( j = i; j < fileSize - 1; j++ )
 			{
 				fileContent[ j ] = fileContent[ j + 1 ];
@@ -367,7 +425,7 @@ uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
 	// verify format
 	for ( i = 0; i < fileSize; i++ )
 	{
-		if ( flag.string && 
+		if ( flag.string &&
 			fileContent[ i ] != '"' )
 		{
 			continue;
@@ -375,7 +433,12 @@ uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
 		switch ( fileContent[ i ] )
 		{
 			case '"':
-			{ // set if next element is in stirng or not 
+			{ // set if next element is in stirng or not
+				if ( flag.string &&
+					( fileContent[ i -1 ] == '\\' ) )
+				{
+					continue;
+				}
 				flag.string ^= 0x01;
 				break;
 			}
@@ -413,7 +476,7 @@ uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
 					( ( fileContent[ i + 1 ] < '0' ) ||
 					( fileContent[ i + 1 ] > '9' ) ) )
 				{
-					printf ( "format problem ...%c%c%c...\n", fileContent[ i - 1 ], fileContent[ i ],fileContent[ i + 1 ] );
+					printf ( "%d: format problem ...%c%c%c...\n", __LINE__, fileContent[ i - 1 ], fileContent[ i ],fileContent[ i + 1 ] );
 					printf ( "%s\n", fileContent );
 					free ( fileContent );
 					return ( __LINE__ );
@@ -426,7 +489,7 @@ uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
 					( ( fileContent[ i ] < '0' ) || // number
 					( fileContent[ i ] > '9' ) ) )
 				{
-					printf ( "format problem ...%c%c%c...\n", fileContent[ i - 1 ], fileContent[ i ], fileContent[ i + 1 ] );
+					printf ( "%d: format problem ...%c%c%c...\n", __LINE__, fileContent[ i - 1 ], fileContent[ i ], fileContent[ i + 1 ] );
 					free ( fileContent );
 					return ( __LINE__ );
 				}
@@ -463,7 +526,7 @@ uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
 
 	i = 0;
 	jsonParseObject ( fileContent, &i, 0, out, length );
-	
+
 	free ( fileContent );
 	return ( 0 );
 }
@@ -483,7 +546,14 @@ uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent )
 
 	if ( !indent )
 	{
-		printf ( "{\n" );
+		if ( data[ id ].key )
+		{
+			printf ( "{\n" );
+		}
+		else
+		{
+			printf ( "[\n" );
+		}
 	}
 
 	for ( j = 0; j < indent + 1; j++ )
@@ -565,7 +635,14 @@ uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent )
 
 	if ( !indent )
 	{
-		printf ( "}\n" );
+		if ( data[ id ].key )
+		{
+			printf ( "}\n" );
+		}
+		else
+		{
+			printf ( "]\n" );
+		}
 	}
 }
 
@@ -621,10 +698,11 @@ uint32_t jsonFree ( json_el ** data, uint32_t length )
 void * jsonGet ( json_el *  data, uint32_t id, JSON_TYPE type )
 {
 	uint32_t i = 0; // loop counter
-	
+
 	for ( i = 0; i < data[ id ].length; i++ )
 	{
 
 	}
 	return ( NULL );
 }
+
