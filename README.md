@@ -10,7 +10,8 @@ Need to be done next:
 - [ ] manage integers
 - [x] add function to parse string
 - [x] add function to get one element
-- [ ] add function to set an element
+- [x] add function to set an element
+- [ ] add function to set an object
 - [ ] add function to print JSON in file/string
 - [ ] add documentation in header
 - [ ] effacer les objets correctement quand on supprime un element du tableau
@@ -33,18 +34,46 @@ int main ( void )
 	void * value = NULL;
 	JSON_TYPE type = jT ( undefined );
 
-
+	// parse an element and print it without manipulations
+	printf ( "\nFirst object:\n" );
 	if ( jsonParseFile ( "file.json", &data, &dataLength ) )
 	{
 		printf ( "error\n");
 	}
-	printf ( "\nFirst object:\n" );
 	jsonPrint ( data, 0, 0 );
 
+	// get an element
 	printf ( "\nElement:\n" );
 	jsonGet ( data, 0, "h1", &value, &type );
-
 	printf ( "h1 value  = %s type : %d\n", (char *)value, type );
+
+	// change JSON structure: replacement of existing element
+	printf ( "\nFirst object with replacements:\n" );
+	value = malloc ( 54 );
+	sprintf ( ( char * ) value, "ceci est un long test qui va remplacer la valeur de G" );
+	if ( jsonSet ( data, 0, "h", value, jT ( str ) ) )
+	{
+		printf ( "error\n" );
+		free ( value );
+	}
+	else
+	{
+		value = NULL;
+	}
+	
+	// change JSON structure: add an element
+	value = malloc ( 11 );
+	sprintf ( ( char * ) value, "ajout en L" );
+	if ( jsonSet ( data, 0, "l", value, jT ( str ) ) )
+	{
+		printf ( "error\n" );
+		free ( value );
+	}
+	else
+	{
+		value = NULL;
+	}
+	jsonPrint ( data, 0, 0 );
 
 	if ( data )
 	{
@@ -57,6 +86,7 @@ int main ( void )
 
 	printf ( "\nSecond object:\n" );
 	jsonPrint ( data, 0, 0 );
+
 
 	if ( data )
 	{
@@ -164,6 +194,41 @@ First object:
 
 Element:
 h1 value  = B52 type : 3
+
+First object with replacements:
+{
+        length:11
+        "a":"bob",
+        "b":"second B\"",
+        "c":"testé",
+        "d":12.000000,
+        "e":false,
+        "f":true,
+        "i":[
+                length:2
+                1.000000,
+                2.000000
+        ],
+        "g":"poney",
+        "h":"ceci est un long test qui va remplacer la valeur de G",
+        "k":[
+                length:13
+                1.000000,
+                2.000000,
+                3.000000,
+                4.000000,
+                5.000000,
+                6.000000,
+                7.000000,
+                8.000000,
+                9.000000,
+                10.000000,
+                11.000000,
+                12.000000,
+                13.000000
+        ],
+        "l":"ajout en L"
+}
 
 Second object:
 [
