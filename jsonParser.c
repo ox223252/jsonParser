@@ -71,6 +71,10 @@ static uint32_t getELement ( const char * str, void ** const value, JSON_TYPE ty
 			(*id)+= i + 1;
 			break;
 		}
+		default:
+		{
+			return ( __LINE__ );
+		}
 	}
 	return ( 0 );
 }
@@ -81,7 +85,6 @@ static uint32_t jsonParseObject ( const char * content, uint32_t * const content
 	char str[ 256 ];
 	double value;
 	uint32_t nextValueId = 0;
-	uint32_t i, j; // loop counter
 
 
 	if ( content [ *contentId ] == '[' )
@@ -271,8 +274,8 @@ static uint32_t jsonParseObject ( const char * content, uint32_t * const content
 								*( uint8_t * )( (*out)[ numObj ].value[ nextValueId ] ) = ( strcmp ( "true", str )?1:0 );
 								(*contentId) += strlen ( str );
 							}
-							else if ( ( content [ *contentId ] >= '0' ) &&
-								( content [ *contentId ] <= '9' ) ||
+							else if ( ( ( content [ *contentId ] >= '0' ) &&
+								( content [ *contentId ] <= '9' ) ) ||
 								( content [ *contentId ] == '.' ) )
 							{ // it's a number
 								(*out)[ numObj ].type[ nextValueId ] = jT( float );
@@ -293,8 +296,8 @@ static uint32_t jsonParseObject ( const char * content, uint32_t * const content
 
 								*( double * )( (*out)[ numObj ].value[ nextValueId ] ) = value;
 
-								while ( ( content [ *contentId ] >= '0' ) &&
-									( content [ *contentId ] <= '9' ) ||
+								while ( ( ( content [ *contentId ] >= '0' ) &&
+									( content [ *contentId ] <= '9' ) ) ||
 									( content [ *contentId ] == '.' ) )
 								{
 									(*contentId)++;
@@ -334,6 +337,13 @@ static uint32_t jsonVerifyFormat ( char * const str, uint64_t * const strSize )
 	uint32_t bracketLvl = 0;
 	uint32_t squareLvl = 0;
 	char tmp[ 6 ];
+
+	if ( !str ||
+		!strSize )
+	{
+		errno = EINVAL;
+		return ( __LINE__ );
+	}
 
 	// verify format
 	for ( i = 0; i < (*strSize); i++ )
@@ -422,6 +432,7 @@ static uint32_t jsonRemoveSpaces ( char * const str, uint64_t * const strSize )
 	if ( !str ||
 		!strSize )
 	{
+		errno = EINVAL;
 		return ( __LINE__ );
 	}
 
@@ -465,6 +476,16 @@ uint32_t jsonParseString ( char * const str, json_el ** out, uint32_t * length )
 	uint32_t objId = 0;
 	uint64_t strSize = strlen ( str );
 
+	if ( !out ||
+		*out ||
+		!length ||
+		*length ||
+		!str )
+	{ // out pointer is null or *out pointer is not null
+		errno = EINVAL;
+		return ( __LINE__ );
+	}
+
 	if ( jsonRemoveSpaces ( str, &strSize ) )
 	{
 		return ( __LINE__ );
@@ -491,9 +512,7 @@ uint32_t jsonParseString ( char * const str, json_el ** out, uint32_t * length )
 	(*out)->length = 0;
 	(*out)->parent = NULL;
 
-	jsonParseObject ( str, &objId, 0, out, length );
-
-	return ( 0 );
+	return ( jsonParseObject ( str, &objId, 0, out, length ) );
 }
 
 uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
@@ -502,17 +521,15 @@ uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
 	uint64_t fileSize = 0;
 	char * fileContent = NULL;
 
-	char str[ 10 ];
-
-	json_el *current;
-
 	uint32_t ret = 0; // return value
 
 	if ( !out ||
 		*out ||
 		!length ||
-		*length )
+		*length ||
+		!file )
 	{ // out pointer is null or *out pointer is not null
+		errno = EINVAL;
 		return ( __LINE__ );
 	}
 
@@ -557,10 +574,11 @@ uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent )
 	uint8_t j = 0;
 
 	if ( !data ||
-		!data[ id ].type &&
+		( !data[ id ].type &&
 		!data[ id ].value &&
-		!data[ id ].key )
+		!data[ id ].key ) )
 	{ // data pointer is null
+		errno = EINVAL;
 		return ( __LINE__ );
 	}
 
@@ -664,6 +682,7 @@ uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent )
 			printf ( "]\n" );
 		}
 	}
+	return ( 0 );
 }
 
 uint32_t jsonFree ( json_el ** data, uint32_t length )
@@ -672,6 +691,7 @@ uint32_t jsonFree ( json_el ** data, uint32_t length )
 
 	if ( !data )
 	{
+		errno = EINVAL;
 		return ( __LINE__ );
 	}
 
@@ -749,5 +769,99 @@ void * jsonGet ( const json_el * const data, const uint32_t id, const char * con
 		}
 	}
 	return ( NULL );
+}
+
+uint32_t jsonSet ( json_el * const data, const uint32_t id, const char * const key, void * const value, const JSON_TYPE type )
+{
+	uint32_t i = 0;
+	void * tmp = NULL;
+		
+	if ( ( type == jT ( obj ) ) ||
+		( type == jT ( array ) ) )
+	{
+		errno = EINVAL;
+		return ( __LINE__ );
+	}
+	for ( i = 0; i < data[ id ].length; i++ )
+	{
+		if ( !strcmp ( data[ id ].key[ i ], key ) )
+		{
+			break;
+		}
+		else if ( data[ id ].type[ i ] == jT ( obj ) )
+		{
+			if ( !jsonSet ( data, *( uint32_t * )data[ id ].value[ i ], key, value, type ) )
+			{
+				return ( 0 );
+			}
+		}
+	}
+
+	if ( i >= data[ id ].length )
+	{
+		tmp = realloc ( data[ id ].key, sizeof ( char * ) * data[ id ].length + 1 );
+		if ( !tmp )
+		{
+			return ( __LINE__ );
+		}
+		data[ id ].key = tmp;
+		tmp = NULL;
+
+		data[ id ].key[ data[ id ].length ] = NULL;
+
+		tmp = malloc ( strlen ( key ) + 1 );
+		if ( !tmp )
+		{
+			return ( __LINE__ );
+		}
+		data[ id ].key[ data[ id ].length ] = tmp;
+		strcpy ( data[ id ].key[ data[ id ].length ], key );
+		tmp = NULL;
+
+		// get next value
+		tmp = realloc (data[ id ].value, sizeof ( void * ) * data[ id ].length + 1 );
+		if ( !tmp )
+		{
+			return ( __LINE__ );
+		}
+		data[ id ].value = tmp;
+		data[ id ].value[ data[ id ].length ] = value;
+		tmp = NULL;
+
+		// set next element type
+		tmp = realloc ( data[ id ].type, sizeof ( uint8_t ) * data[ id ].length + 1 );
+		if ( !tmp )
+		{
+			return ( __LINE__ );
+		}
+		data[ id ].type = tmp;
+		data[ id ].type[ data[ id ].length ] = type;
+		tmp = NULL;
+
+		data[ id ].length++;
+	}
+	else
+	{
+		switch ( data[ id ].type[ i ] )
+		{
+			case jT ( bool ):
+			case jT ( float ):
+			case jT ( str ):
+			{
+				free ( data[ id ].value[ i ] );
+				break;
+			}
+			case jT ( obj ):
+			case jT ( array ):
+			{
+				// TODO: write a function to remove and object from the list
+				break;
+			}
+		}
+
+		data[ id ].value[ i ] = value;
+		data[ id ].type[ i ] = type;
+	}
+	return ( 0 );
 }
 
