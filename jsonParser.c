@@ -13,7 +13,7 @@
 ///
 /// You should have received a copy of the GNU General Public License along with
 ///     this program. If not, see <http://www.gnu.org/licenses/>
-////////////////////////////////////////////////////////////////////////////////dz
+////////////////////////////////////////////////////////////////////////////////
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,6 +23,12 @@
 #include <string.h>
 
 #include "jsonParser.h"
+
+#ifdef DEBUG_MODE
+#define DEBUG(...) {printf("\e[1;34m%s \e[33m%d\e[0m : ", __func__, __LINE__ );printf(__VA_ARGS__);}
+#else
+#define DEBUG(...)
+#endif
 
 static uint32_t getELement ( const char * str, void ** const value, JSON_TYPE type, uint32_t * const id )
 {
@@ -471,6 +477,64 @@ static uint32_t jsonRemoveSpaces ( char * const str, uint64_t * const strSize )
 	return ( 0 );
 }
 
+static uint32_t jsonFreeOne ( json_el * const data, uint32_t id )
+{
+	uint32_t j = 0;
+
+	if ( !data )
+	{
+		errno = EINVAL;
+		return ( __LINE__ );
+	}
+
+	for ( j = 0; j < data[ id ].length; j++ )
+	{
+		if (  data[ id ].key &&
+			 data[ id ].key[ j ] )
+		{
+			free (  data[ id ].key[ j ] );
+			 data[ id ].key[ j ] = NULL;
+		}
+
+		if (  data[ id ].value &&
+			 data[ id ].value[ j ] )
+		{
+			if ( (  data[ id ].type[ j ] == jT( float ) ) ||
+				(  data[ id ].type[ j ] == jT( str ) ) ||
+				(  data[ id ].type[ j ] == jT( bool ) ) ||
+				(  data[ id ].type[ j ] == jT( array ) ) ||
+				(  data[ id ].type[ j ] == jT( obj ) ) )
+			{
+				free (  data[ id ].value[ j ] );
+			}
+			else
+			{ // undefined
+			}
+			 data[ id ].value[ j ] = NULL;
+		}
+	}
+
+	if (  data[ id ].key )
+	{
+		free (  data[ id ].key );
+		 data[ id ].key = NULL;
+	}
+
+	if (  data[ id ].value )
+	{
+		free (  data[ id ].value );
+		 data[ id ].value = NULL;
+	}
+
+	if (  data[ id ].type )
+	{
+		free (  data[ id ].type );
+		 data[ id ].type = NULL;
+	}
+
+	return ( 0 );
+}
+
 uint32_t jsonParseString ( char * const str, json_el ** out, uint32_t * length )
 {
 	uint32_t objId = 0;
@@ -687,47 +751,19 @@ uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent )
 
 uint32_t jsonFree ( json_el ** data, uint32_t length )
 {
-	uint32_t i = 0, j = 0;
+	uint32_t i = 0;
 
 	if ( !data )
 	{
 		errno = EINVAL;
 		return ( __LINE__ );
 	}
-
 	for ( i = 0; i < length; i++ )
 	{
-		for ( j = 0; j < (*data)[ i ].length; j++ )
+		if ( jsonFreeOne ( *data, i ) )
 		{
-			if ( (*data)[ i ].key &&
-				(*data)[ i ].key[ j ] )
-			{
-				free ( (*data)[ i ].key[ j ] );
-				(*data)[ i ].key[ j ] = NULL;
-			}
-
-			if ( (*data)[ i ].value &&
-				(*data)[ i ].value[ j ] )
-			{
-				if ( ( (*data)[ i ].type[ j ] == jT( float ) ) ||
-					( (*data)[ i ].type[ j ] == jT( str ) ) ||
-					( (*data)[ i ].type[ j ] == jT( bool ) ) )
-				{
-					free ( (*data)[ i ].value[ j ] );
-				}
-				else
-				{ // undefined / array / obj
-					// nothing to be done
-				}
-				(*data)[ i ].value[ j ] = NULL;
-			}
+			return ( __LINE__ );
 		}
-		free ( (*data)[ i ].key );
-		free ( (*data)[ i ].value );
-		free ( (*data)[ i ].type );
-		(*data)[ i ].key = NULL;
-		(*data)[ i ].value = NULL;
-		(*data)[ i ].type = NULL;
 	}
 
 	free ( *data );
@@ -854,7 +890,9 @@ uint32_t jsonSet ( json_el * const data, const uint32_t id, const char * const k
 			case jT ( obj ):
 			case jT ( array ):
 			{
-				// TODO: write a function to remove and object from the list
+				jsonFreeOne ( data, *( uint32_t * )data[ id ].value[ i ] );
+				data[ id ].value[ i ] = NULL;
+				data[ id ].type[ i ] = jT ( undefined );
 				break;
 			}
 		}

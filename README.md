@@ -14,7 +14,7 @@ Need to be done next:
 - [ ] add function to set an object
 - [ ] add function to print JSON in file/string
 - [ ] add documentation in header
-- [ ] effacer les objets correctement quand on supprime un element du tableau
+- [x] remove properly object when an element is removed form array
 - [ ] **verify memory leak with valgrind**
 
 ## example:
