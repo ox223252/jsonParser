@@ -12,8 +12,8 @@ Need to be done next:
 - [x] add function to get one element
 - [x] add function to set an element
 - [ ] add function to set an object
-- [ ] add function to print JSON in file/string
-- [ ] add documentation in header
+- [x] add function to print JSON in file/string
+- [x] add documentation in header
 - [x] remove properly object when an element is removed form array
 - [ ] **verify memory leak with valgrind**
 
@@ -23,6 +23,8 @@ Need to be done next:
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
+#include <string.h>
 
 #include "jsonParser/jsonParser.h"
 
@@ -32,9 +34,10 @@ int main ( void )
 	uint32_t dataLength = 0;
 
 	void * value = NULL;
+	uint64_t length = 0;
 	JSON_TYPE type = jT ( undefined );
 
-	// parse an element and print it without manipulations
+
 	printf ( "\nFirst object:\n" );
 	if ( jsonParseFile ( "file.json", &data, &dataLength ) )
 	{
@@ -42,12 +45,11 @@ int main ( void )
 	}
 	jsonPrint ( data, 0, 0 );
 
-	// get an element
 	printf ( "\nElement:\n" );
 	jsonGet ( data, 0, "h1", &value, &type );
+
 	printf ( "h1 value  = %s type : %d\n", (char *)value, type );
 
-	// change JSON structure: replacement of existing element
 	printf ( "\nFirst object with replacements:\n" );
 	value = malloc ( 54 );
 	sprintf ( ( char * ) value, "ceci est un long test qui va remplacer la valeur de G" );
@@ -60,8 +62,6 @@ int main ( void )
 	{
 		value = NULL;
 	}
-	
-	// change JSON structure: add an element
 	value = malloc ( 11 );
 	sprintf ( ( char * ) value, "ajout en L" );
 	if ( jsonSet ( data, 0, "l", value, jT ( str ) ) )
@@ -86,6 +86,39 @@ int main ( void )
 
 	printf ( "\nSecond object:\n" );
 	jsonPrint ( data, 0, 0 );
+
+	// get json in string
+	if ( jsonPrintString ( data, 0, ( char ** )&value, NULL ) )
+	{
+		// probleme
+	}
+	else
+	{
+		printf ( "%s\n", ( char * ) value );
+	}
+
+	if ( value )
+	{
+		free ( value );
+		value = NULL;
+	}
+
+	// try to put json in a small string it should be fail
+	length = 20;
+	if ( jsonPrintString ( data, 0, ( char ** )&value, &length ) )
+	{ // normal case on failure
+		if ( value )
+		{ // failure but some work already done
+			printf ( "%s %lu\n", ( char * ) value, strlen ( ( char * ) value ) );
+		}
+	}
+
+	if ( value )
+	{
+		free ( value );
+		value = NULL;
+	}
+
 
 
 	if ( data )
@@ -151,11 +184,10 @@ int main ( void )
 
 ### display output:
 ```Shel
-> gcc main.c jsonParser/jsonParser.c && ./a.out
+> gcc main.c jsonParser/jsonParser.c -Wall && ./a.out
 
 First object:
 {
-        length:10
         "a":"bob",
         "b":"second B\"",
         "c":"testé",
@@ -163,19 +195,16 @@ First object:
         "e":false,
         "f":true,
         "i":[
-                length:2
                 1.000000,
                 2.000000
         ],
         "g":"poney",
         "h":{
-                length:3
                 "h1":"B52",
                 "h2":100.000000,
                 "h3":999.000000
         },
         "k":[
-                length:13
                 1.000000,
                 2.000000,
                 3.000000,
@@ -197,7 +226,6 @@ h1 value  = B52 type : 3
 
 First object with replacements:
 {
-        length:11
         "a":"bob",
         "b":"second B\"",
         "c":"testé",
@@ -205,14 +233,12 @@ First object with replacements:
         "e":false,
         "f":true,
         "i":[
-                length:2
                 1.000000,
                 2.000000
         ],
         "g":"poney",
         "h":"ceci est un long test qui va remplacer la valeur de G",
         "k":[
-                length:13
                 1.000000,
                 2.000000,
                 3.000000,
@@ -232,7 +258,6 @@ First object with replacements:
 
 Second object:
 [
-        length:8
         1.000000,
         2.000000,
         3.000000,
@@ -241,8 +266,9 @@ Second object:
         6.000000,
         7.000000,
         {
-                length:1
                 "alpha":"test"
         }
 ]
+[1.000000,2.000000,3.000000,4.000000,5.000000,6.000000,7.000000,{"alpha":"test"}]
+[1.000000,2.000000, 19
 ```
