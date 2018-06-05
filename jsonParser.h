@@ -28,7 +28,7 @@
 /// \author ox223252
 /// \date 2018-05
 /// \copyright GPLv2
-/// \version 0.1
+/// \version 0.2
 /// \warning work in progress
 /// \bug array not supported
 /// \bug when prinJSON called, only 2 lvl of json can be displayed
@@ -80,6 +80,36 @@ uint32_t jsonParseString ( char * const str, json_el ** out, uint32_t * length )
 /// \return if 0 then OK else that failed, you can see errno for more details
 ////////////////////////////////////////////////////////////////////////////////
 uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length );
+
+////////////////////////////////////////////////////////////////////////////////
+/// \fn uint32_t jsonPrintFile ( json_el * const data, const uint32_t id, 
+///     const uint8_t indent, FILE * const outFile );
+/// \param[ in ] data: obj what contain JSON (created by jsonParseFile/String),
+/// \param[ in ] id: object id in the data array, set to 0 in most cases,
+/// \param[ in ] indent: indentation level for the recursive call, set to 0,
+/// \param[ in ] outFile: File pointer output
+/// \brief will print JSON struc in a file
+/// \return if 0 the OK else that failed, see errno for more details
+////////////////////////////////////////////////////////////////////////////////
+uint32_t jsonPrintFile ( json_el * const data, const uint32_t id, 
+	const uint8_t indent, FILE * const outFile );
+
+////////////////////////////////////////////////////////////////////////////////
+/// \fn uint32_t jsonPrintString ( json_el * const data, const uint32_t id, 
+///     char ** const outStr, char * const outLength );
+/// \param[ in ] data: obj what contain JSON (created by jsonParseFile/String),
+/// \param[ in ] id: object id in the data array, set to 0 in most cases,
+/// \param[ in ] outStr: string pointer output
+/// \param[ in ] outLength: string pointer output
+/// \brief will print JSON struc in a string
+/// \details if *outStr is NULL this function will allocate memory, don't forget
+///     to free it, if outLength is NULL or *outLength = 0 then, this function 
+///     will realloc *outStr to increase size, if *outLength != 0 then the JSON
+///     will be read until size is too small or JSON ended.
+/// \return if 0 the OK else that failed, see errno for more details
+////////////////////////////////////////////////////////////////////////////////
+uint32_t jsonPrintString ( json_el * const data, const uint32_t id, 
+	char ** const outStr, uint64_t * const outLength );
 
 ////////////////////////////////////////////////////////////////////////////////
 /// \fn uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent );

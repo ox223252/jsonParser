@@ -632,12 +632,13 @@ uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
 	return ( ret );
 }
 
-uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent )
+uint32_t jsonPrintFile ( json_el * const data, const uint32_t id, const uint8_t indent, FILE * const outFile )
 {
 	uint32_t i = 0; // loop counter
 	uint8_t j = 0;
 
-	if ( !data ||
+	if ( !outFile ||
+		!data ||
 		( !data[ id ].type &&
 		!data[ id ].value &&
 		!data[ id ].key ) )
@@ -650,103 +651,373 @@ uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent )
 	{
 		if ( data[ id ].key )
 		{
-			printf ( "{\n" );
+			fprintf ( outFile, "{\n" );
 		}
 		else
 		{
-			printf ( "[\n" );
+			fprintf ( outFile, "[\n" );
 		}
 	}
-
-	for ( j = 0; j < indent + 1; j++ )
-	{
-		printf ( "\t" );
-	}
-	printf ( "length:%d\n", data[ id ].length );
 
 	for ( i = 0; i < data[ id ].length; i++ )
 	{
 		for ( j = 0; j < indent + 1; j++ )
 		{
-			printf ( "\t" );
+			fprintf ( outFile, "\t" );
 		}
 
 		if ( data[ id ].key &&
 			data[ id ].key[ i ] )
 		{
-			printf ( "\"%s\":", data[ id ].key[ i ] );
+			fprintf ( outFile, "\"%s\":", data[ id ].key[ i ] );
 		}
 
 		if ( !data[ id ].type )
 		{
-			printf ( "no data\n");
+			fprintf ( outFile, "no data\n");
 		}
 		else switch ( data[ id ].type[ i ] )
 		{
 			case jT( undefined ):
 			{
-				printf ( "undefined" );
+				fprintf ( outFile, "undefined" );
 				break;
 			}
 			case jT( bool ):
 			{
-				printf ( "%s", ( *( uint8_t * )data[ id ].value[ i ] )?"true":"false" );
+				fprintf ( outFile, "%s", ( *( uint8_t * )data[ id ].value[ i ] )?"true":"false" );
 				break;
 			}
 			case jT( float ):
 			{
-				printf ( "%lf", *( double * )data[ id ].value[ i ] );
+				fprintf ( outFile, "%lf", *( double * )data[ id ].value[ i ] );
 				break;
 			}
 			case jT( str ):
 			{
-				printf ( "\"%s\"", ( char * )(data[ id ].value[ i ]) );
+				fprintf ( outFile, "\"%s\"", ( char * )(data[ id ].value[ i ]) );
 				break;
 			}
 			case jT( obj ):
 			{
-				printf ( "{\n" );
-				jsonPrint ( data, *( uint32_t * )(data[ id ].value[ i ]), indent + 1 );
+				fprintf ( outFile, "{\n" );
+				jsonPrintFile ( data, *( uint32_t * )(data[ id ].value[ i ]), indent + 1, outFile );
 				for ( j = 0; j < indent + 1; j++ )
 				{
 					printf ( "\t" );
 				}
-				printf ( "}" );
+				fprintf ( outFile, "}" );
 				break;
 			}
 			case jT( array ):
 			{
-				printf ( "[\n" );
-				jsonPrint ( data, *( uint32_t * )(data[ id ].value[ i ]), indent + 1 );
+				fprintf ( outFile, "[\n" );
+				jsonPrintFile ( data, *( uint32_t * )(data[ id ].value[ i ]), indent + 1, outFile );
 				for ( j = 0; j < indent + 1; j++ )
 				{
 					printf ( "\t" );
 				}
-				printf ( "]" );
+				fprintf ( outFile, "]" );
 				break;
 			}
 		}
 
 		if ( i < data[ id ].length - 1 )
 		{
-			printf ( "," );
+			fprintf ( outFile, "," );
 		}
 
-		printf ( "\n" );
+		fprintf ( outFile, "\n" );
 	}
 
 	if ( !indent )
 	{
 		if ( data[ id ].key )
 		{
-			printf ( "}\n" );
+			fprintf ( outFile, "}\n" );
 		}
 		else
 		{
-			printf ( "]\n" );
+			fprintf ( outFile, "]\n" );
 		}
 	}
 	return ( 0 );
+}
+
+uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** const outStr, uint64_t * const outLength )
+{
+	uint32_t i = 0; // loop counter
+	void * tmp = NULL;
+	char tmpStr[ 48 ];
+
+	enum
+	{
+		JPS_UNDEFINED = 0,
+		JPS_OUT_NULL = 0x01,
+		JPS_OUT_SET = 0x02,
+		JPS_LEN_NULL = 0x04,
+		JPS_LEN_ZERO = 0x08,
+		JPS_LEN_SET = 0x10
+	}
+	flag = JPS_UNDEFINED;
+
+	if ( !outStr ||
+		!data ||
+		( !data[ id ].type &&
+		!data[ id ].value &&
+		!data[ id ].key ) )
+	{ // data pointer is null
+		errno = EINVAL;
+		return ( __LINE__ );
+	}
+
+	// manage the differents cases available for outStr and outLength
+	if ( !*outStr )
+	{
+		flag |= JPS_OUT_NULL;
+	}
+	else
+	{
+		flag |= JPS_OUT_SET;
+	}
+
+	if ( !outLength )
+	{
+		flag |= JPS_LEN_NULL;
+	}
+	else if ( outLength == 0 )
+	{
+		flag |= JPS_LEN_ZERO;
+	}
+	else
+	{
+		flag |= JPS_OUT_SET;
+	}
+
+
+	if ( ( flag & JPS_OUT_NULL ) &&
+		( flag & ( JPS_LEN_NULL | JPS_LEN_ZERO ) ) )
+	{
+		*outStr = malloc ( 1024 );
+		*outStr[ 0 ] = '\0';
+	}
+	else if ( ( flag & JPS_OUT_NULL ) &&
+		( flag & JPS_OUT_SET ) )
+	{
+		*outStr = malloc ( *outLength );
+		if ( !*outStr )
+		{
+			return ( __LINE__ );
+		}
+		(*outStr)[ 0 ] = '\0';
+	}
+	else if ( ( flag & JPS_OUT_SET ) &&
+		( flag & ( JPS_LEN_NULL | JPS_LEN_ZERO ) ) )
+	{
+		// nothing to be done
+	}
+	else if ( ( flag & JPS_OUT_SET ) &&
+		( flag & JPS_OUT_SET ) )
+	{
+		// nothing to be done
+	}
+	if ( data[ id ].key )
+	{
+		sprintf ( &(*outStr)[ strlen ( *outStr ) ], "{" );
+	}
+	else
+	{
+		sprintf ( &(*outStr)[ strlen ( *outStr ) ], "[" );
+	}
+
+	for ( i = 0; i < data[ id ].length; i++ )
+	{
+
+		if ( data[ id ].key &&
+			data[ id ].key[ i ] )
+		{
+			// manage cases when outStr's size need to be  increase
+			if ( flag & ( JPS_LEN_NULL | JPS_LEN_ZERO ) )
+			{
+				tmp = realloc ( *outStr, strlen ( *outStr ) + strlen ( ( char * )(data[ id ].key[ i ]) ) + 128 );
+				if ( !tmp )
+				{
+					return ( __LINE__ );
+				}
+				*outStr = tmp;
+			}
+			else if ( flag & JPS_OUT_SET )
+			{
+				// verify if JSON is not too big to outStr 
+				if ( ( strlen( *outStr ) + strlen ( data[ id ].key[ i ] ) + 2 ) > *outLength )
+				{
+					return ( __LINE__ );
+				}
+			}
+			sprintf ( &(*outStr)[ strlen( *outStr ) ], "\"%s\":", data[ id ].key[ i ] );
+		}
+		else
+		{
+			// manage cases when outStr's size need to be  increase
+			if ( flag & ( JPS_LEN_NULL | JPS_LEN_ZERO ) )
+			{
+				tmp = realloc ( *outStr, strlen ( *outStr ) +  128 );
+				if ( !tmp )
+				{
+					return ( __LINE__ );
+				}
+				*outStr = tmp;
+			}
+		}
+
+
+		if ( !data[ id ].type )
+		{
+			if ( flag & JPS_OUT_SET )
+			{
+				// verify if JSON is not too big to outStr
+				if ( ( strlen( *outStr ) + 7 + 2 ) > *outLength )
+				{
+					return ( __LINE__ );
+				}
+			}
+			sprintf ( &(*outStr)[ strlen( *outStr ) ], "no data");
+		}
+		else switch ( data[ id ].type[ i ] )
+		{
+			case jT( undefined ):
+			{
+				if ( flag & JPS_OUT_SET )
+				{
+					// verify if JSON is not too big to outStr 
+					if ( ( strlen( *outStr ) + 9 + 2 ) > *outLength )
+					{
+						return ( __LINE__ );
+					}
+				}
+				sprintf ( &(*outStr)[ strlen( *outStr ) ], "undefined" );
+				break;
+			}
+			case jT( bool ):
+			{
+				if ( flag & JPS_OUT_SET )
+				{
+					// verify if JSON is not too big to outStr 
+					if ( ( strlen( *outStr ) + 5 + 2 ) > *outLength )
+					{
+						return ( __LINE__ );
+					}
+				}
+				sprintf ( &(*outStr)[ strlen( *outStr ) ], "%s", ( *( uint8_t * )data[ id ].value[ i ] )?"true":"false" );
+				break;
+			}
+			case jT( float ):
+			{
+				if ( flag & JPS_OUT_SET )
+				{
+					sprintf ( tmpStr, "%lf", *( double * )data[ id ].value[ i ] );
+					// verify if JSON is not too big to outStr 
+					if ( ( strlen( *outStr ) + strlen ( tmpStr ) + 2 ) > *outLength )
+					{
+						return ( __LINE__ );
+					}
+					sprintf ( &(*outStr)[ strlen( *outStr ) ], "%s", tmpStr );
+				}
+				else
+				{
+					sprintf ( &(*outStr)[ strlen( *outStr ) ], "%lf", *( double * )data[ id ].value[ i ] );
+				}
+				break;
+			}
+			case jT( str ):
+			{
+
+				if ( flag & ( JPS_LEN_NULL | JPS_LEN_ZERO ) )
+				{
+					tmp = realloc ( *outStr, strlen ( *outStr ) + strlen ( ( char * )(data[ id ].value[ i ]) ) + 2 );
+					if ( !tmp )
+					{
+						return ( __LINE__ );
+					}
+					*outStr = tmp;
+				}
+				else if ( flag & JPS_OUT_SET )
+				{
+					// verify if JSON is not too big to outStr 
+					if ( ( strlen( *outStr ) + strlen ( ( char * )(data[ id ].value[ i ]) ) + 2 ) > *outLength )
+					{
+						return ( __LINE__ );
+					}
+				}
+				sprintf ( &(*outStr)[ strlen( *outStr ) ], "\"%s\"", ( char * )(data[ id ].value[ i ]) );
+				break;
+			}
+			case jT( obj ):
+			{
+
+				if ( flag & JPS_OUT_SET )
+				{
+					// verify if JSON is not too big to outStr
+					if ( ( strlen( *outStr ) + 3 ) > *outLength )
+					{
+						return ( __LINE__ );
+					}
+				}
+				jsonPrintString ( data, *( uint32_t * )(data[ id ].value[ i ]), outStr, outLength );
+				break;
+			}
+			case jT( array ):
+			{
+
+				if ( flag & JPS_OUT_SET )
+				{
+					// verify if JSON is not too big to outStr
+					if ( ( strlen( *outStr ) + 3 ) > *outLength )
+					{
+						return ( __LINE__ );
+					}
+				}
+				jsonPrintString ( data, *( uint32_t * )(data[ id ].value[ i ]), outStr, outLength );
+				break;
+			}
+		}
+
+		if ( i < data[ id ].length - 1 )
+		{
+			sprintf ( &(*outStr)[ strlen( *outStr ) ], "," );
+		}
+	}
+
+	if ( data[ id ].key )
+	{
+		sprintf ( &(*outStr)[ strlen( *outStr ) ], "}" );
+	}
+	else
+	{
+		sprintf ( &(*outStr)[ strlen( *outStr ) ], "]" );
+	}
+
+	if ( ( flag & JPS_OUT_NULL ) &&
+		( flag & ( JPS_LEN_NULL | JPS_LEN_ZERO ) ) )
+	{
+		tmp = realloc ( *outStr, strlen ( *outStr ) + 2 );
+		if ( !tmp )
+		{
+			return ( __LINE__ );
+		}
+		*outStr = tmp;
+	}
+	if ( flag & JPS_LEN_ZERO )
+	{
+		*outLength = strlen ( *outStr );
+	}
+
+	return ( 0 );
+}
+
+uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent )
+{
+	return ( jsonPrintFile ( data, id, indent, stdout ) );
 }
 
 uint32_t jsonFree ( json_el ** data, uint32_t length )
