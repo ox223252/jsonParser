@@ -40,7 +40,16 @@ typedef enum
 {
 	JSON_TYPE_undefined,  ///< not defined yet
 	JSON_TYPE_bool,       ///< boolean
-	JSON_TYPE_float,      ///< double
+	JSON_TYPE_uint8_t,    ///< uint8
+	JSON_TYPE_uint16_t,   ///< uint16
+	JSON_TYPE_uint32_t,   ///< uint32
+	JSON_TYPE_uint64_t,   ///< uint64
+	JSON_TYPE_int8_t,     ///< int8
+	JSON_TYPE_int16_t,    ///< int16
+	JSON_TYPE_int32_t,    ///< int32
+	JSON_TYPE_int64_t,    ///< int64
+	JSON_TYPE_float,      ///< float
+	JSON_TYPE_double,     ///< double
 	JSON_TYPE_str,        ///< char *
 	JSON_TYPE_obj,        ///< new json object
 	JSON_TYPE_array       ///< new json array
