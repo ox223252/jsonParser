@@ -8,6 +8,8 @@ Need to be done next:
 - [x] correct bug on display
 - [x] prevent multiple element with same key in one object
 - [ ] manage integers
+  - [x] created by user by jsonSetObject()
+  - [ ] in a read file / string
 - [x] add function to parse string
 - [x] add function to get one element
 - [x] add function to set an element

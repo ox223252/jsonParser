@@ -28,10 +28,8 @@
 /// \author ox223252
 /// \date 2018-05
 /// \copyright GPLv2
-/// \version 0.2
+/// \version 0.3
 /// \warning work in progress
-/// \bug array not supported
-/// \bug when prinJSON called, only 2 lvl of json can be displayed
 ////////////////////////////////////////////////////////////////////////////////
 
 #define jT(type) JSON_TYPE_##type
