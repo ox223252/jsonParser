@@ -28,7 +28,7 @@
 /// \author ox223252
 /// \date 2018-05
 /// \copyright GPLv2
-/// \version 0.3
+/// \version 0.4
 /// \warning work in progress
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -49,6 +49,18 @@ typedef enum
 	JSON_TYPE_float,      ///< float
 	JSON_TYPE_double,     ///< double
 	JSON_TYPE_str,        ///< char *
+	JSON_TYPE_ptrBool,    ///< pointer boolean
+	JSON_TYPE_ptrUint8_t, ///< pointer uint8
+	JSON_TYPE_ptrUint16_t,///< pointer uint16
+	JSON_TYPE_ptrUint32_t,///< pointer uint32
+	JSON_TYPE_ptrUint64_t,///< pointer uint64
+	JSON_TYPE_ptrInt8_t,  ///< pointer int8
+	JSON_TYPE_ptrInt16_t, ///< pointer int16
+	JSON_TYPE_ptrInt32_t, ///< pointer int32
+	JSON_TYPE_ptrInt64_t, ///< pointer int64
+	JSON_TYPE_ptrFloat,   ///< pointer float
+	JSON_TYPE_ptrDouble,  ///< pointer double
+	JSON_TYPE_ptrStr,     ///< pointer char *
 	JSON_TYPE_obj,        ///< new json object
 	JSON_TYPE_array       ///< new json array
 }JSON_TYPE;
@@ -59,7 +71,6 @@ typedef struct __json_el
 	void **value;         ///<
 	uint8_t *type;        ///<
 	uint32_t length;      ///<
-	struct __json_el * parent;///<
 }
 json_el;
 
@@ -146,10 +157,23 @@ uint32_t jsonFree ( json_el ** data, uint32_t length );
 /// \param[ in ] key: key of the wanted element,
 /// \param[ in ] value: a pointer on the found object value,
 /// \param[ in ] type: the type of object value
+/// \brief that will parse only the provided object level
+////////////////////////////////////////////////////////////////////////////////
+void * jsonGet ( const json_el * const data, const uint32_t id, 
+	const char * const key, void ** const value, JSON_TYPE * const type );
+
+////////////////////////////////////////////////////////////////////////////////
+/// \fn void * jsonGet ( const json_el * const data, const uint32_t id,
+///     const char * const key, void ** const value, JSON_TYPE * const type );
+/// \param[ in ] data: JSON objct data's array,
+/// \param[ in ] id: object id in the data array, set to 0 in most cases,
+/// \param[ in ] key: key of the wanted element,
+/// \param[ in ] value: a pointer on the found object value,
+/// \param[ in ] type: the type of object value
 /// \brief that will parse all obj to found the first element with this key
 /// \return NULL if key not found else pointer on value
 ////////////////////////////////////////////////////////////////////////////////
-void * jsonGet ( const json_el * const data, const uint32_t id, 
+void * jsonGetRecursive ( const json_el * const data, const uint32_t id, 
 	const char * const key, void ** const value, JSON_TYPE * const type );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -165,5 +189,10 @@ void * jsonGet ( const json_el * const data, const uint32_t id,
 ////////////////////////////////////////////////////////////////////////////////
 uint32_t jsonSet ( json_el * const data, const uint32_t id, 
 	const char * const key, void * const value, const JSON_TYPE type );
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+uint32_t jsonSetObj ( json_el ** const data, const uint32_t id, 
+	const char * const key, const JSON_TYPE type, uint32_t * const length );
 
 #endif

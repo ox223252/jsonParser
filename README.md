@@ -13,11 +13,11 @@ Need to be done next:
 - [x] add function to parse string
 - [x] add function to get one element
 - [x] add function to set an element
-- [ ] add function to set an object
+- [x] add function to set an object
 - [x] add function to print JSON in file/string
 - [x] add documentation in header
 - [x] remove properly object when an element is removed form array
-- [ ] **verify memory leak with valgrind**
+- [x] **verify memory leak with valgrind**
 
 ## example:
 ### main.c:
@@ -28,12 +28,19 @@ Need to be done next:
 #include <errno.h>
 #include <string.h>
 
-#include "jsonParser/jsonParser.h"
+#include "jsonParser.h"
+
+#define LOG(); printf ( "%d\n", __LINE__ );
 
 int main ( void )
 {
 	json_el *data = NULL;
 	uint32_t dataLength = 0;
+
+	uint8_t bob = 6;
+	uint8_t alice = 6;
+	uint8_t alice2 = 7;
+	float test = 12.3;
 
 	void * value = NULL;
 	uint64_t length = 0;
@@ -48,41 +55,28 @@ int main ( void )
 	jsonPrint ( data, 0, 0 );
 
 	printf ( "\nElement:\n" );
-	jsonGet ( data, 0, "h1", &value, &type );
+	jsonGetRecursive ( data, 0, "h1", &value, &type );
 
 	printf ( "h1 value  = %s type : %d\n", (char *)value, type );
 
 	printf ( "\nFirst object with replacements:\n" );
-	value = malloc ( 54 );
-	sprintf ( ( char * ) value, "ceci est un long test qui va remplacer la valeur de G" );
-	if ( jsonSet ( data, 0, "h", value, jT ( str ) ) )
+	if ( jsonSet ( data, 0, "h", "ceci est un long test qui va remplacer la valeur de G", jT ( str ) ) )
 	{
 		printf ( "error\n" );
-		free ( value );
 	}
-	else
-	{
-		value = NULL;
-	}
-	value = malloc ( 11 );
-	sprintf ( ( char * ) value, "ajout en L" );
-	if ( jsonSet ( data, 0, "l", value, jT ( str ) ) )
+
+	if ( jsonSet ( data, 0, "l", "ajout en L" , jT ( str ) ) )
 	{
 		printf ( "error\n" );
-		free ( value );
-	}
-	else
-	{
-		value = NULL;
 	}
 	jsonPrint ( data, 0, 0 );
 
 	if ( data )
 	{
 		jsonFree ( &data, dataLength );
-		data = NULL;
 		dataLength = 0;
 	}
+
 
 	jsonParseString ( "[1,2,3,4,5,6,7,{\"alpha\":\"test\"}]", &data, &dataLength );
 
@@ -126,10 +120,45 @@ int main ( void )
 	if ( data )
 	{
 		jsonFree ( &data, dataLength );
-		data = NULL;
 		dataLength = 0;
 	}
 
+
+	jsonParseString ( "{}", &data, &dataLength );
+
+	jsonSet ( data, 0, "bob", &bob, jT ( uint8_t ) );
+	jsonSet ( data, 0, "alice", &alice, jT ( uint8_t ) );
+	jsonSet ( data, 0, "alice", "au pays de merveilles", jT ( str ) );
+
+	jsonSetObj ( &data, 0, "mike", jT ( obj ), &dataLength );
+
+	jsonSet ( data, dataLength - 1, "alice2", &alice2, jT ( uint8_t ) );
+	jsonSet ( data, dataLength - 1, "alice3", &test, jT ( float ) );
+	jsonSetObj ( &data, dataLength - 1, "array", jT ( array ), &dataLength );
+	jsonSet ( data, dataLength - 1, NULL, &test, jT ( float ) );
+
+	jsonPrint ( data, 0, 0 );
+
+
+	if ( jsonGetRecursive ( data, 0, "array", &value, &type ) )
+	{
+		jsonSet ( data, dataLength - 1, NULL, &test, jT ( ptrFloat ) );
+		if ( type == jT ( array ) ||
+			type == jT ( obj ) )
+		{
+			jsonPrint ( data, *(uint32_t*)value, 0 );
+		}
+		test = 17.0;
+		if ( type == jT ( array ) ||
+			type == jT ( obj ) )
+		{
+			jsonPrint ( data, *(uint32_t*)value, 0 );
+		}
+	}
+
+	jsonFree ( &data, dataLength );
+	dataLength = 0;
+	
 	return ( 0 );
 }
 ```
@@ -186,7 +215,12 @@ int main ( void )
 
 ### display output:
 ```Shel
-> gcc main.c jsonParser/jsonParser.c -Wall && ./a.out
+> gcc main.c jsonParser.c -Wall -DDEBUG_MODE -g && valgrind ./a.out
+==37049== Memcheck, a memory error detector
+==37049== Copyright (C) 2002-2015, and GNU GPL'd, by Julian Seward et al.
+==37049== Using Valgrind-3.11.0 and LibVEX; rerun with -h for copyright info
+==37049== Command: ./a.out
+==37049==
 
 First object:
 {
@@ -224,7 +258,7 @@ First object:
 }
 
 Element:
-h1 value  = B52 type : 3
+h1 value  = (null) type : 0
 
 First object with replacements:
 {
@@ -273,4 +307,33 @@ Second object:
 ]
 [1.000000,2.000000,3.000000,4.000000,5.000000,6.000000,7.000000,{"alpha":"test"}]
 [1.000000,2.000000, 19
+{
+        "bob":6,
+        "alice":"au pays de merveilles",
+        "mike":{
+                "alice2":7,
+                "alice3":12.300000,
+                "array":[
+                        12.300000
+                ]
+        }
+}
+12.300000
+[
+        12.300000,
+        12.300000
+]
+[
+        12.300000,
+        17.000000
+]
+==37049==
+==37049== HEAP SUMMARY:
+==37049==     in use at exit: 0 bytes in 0 blocks
+==37049==   total heap usage: 287 allocs, 287 frees, 14,319 bytes allocated
+==37049==
+==37049== All heap blocks were freed -- no leaks are possible
+==37049==
+==37049== For counts of detected and suppressed errors, rerun with: -v
+==37049== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
 ```

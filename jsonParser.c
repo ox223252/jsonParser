@@ -30,6 +30,13 @@
 #define DEBUG(...)
 #endif
 
+static uint32_t getELement ( const char * str, void ** const value, JSON_TYPE type, uint32_t * const id );
+static uint32_t jsonParseObject ( const char * content, uint32_t * const contentId, uint32_t numObj, json_el ** out, uint32_t * outLength );
+static uint32_t jsonVerifyFormat ( char * const str, uint64_t * const strSize );
+static uint32_t jsonRemoveSpaces ( char * const str, uint64_t * const strSize );
+static uint32_t jsonFreeOne ( json_el * const data, uint32_t id );
+
+
 static uint32_t getELement ( const char * str, void ** const value, JSON_TYPE type, uint32_t * const id )
 {
 	uint32_t i = 0;
@@ -108,6 +115,7 @@ static uint32_t jsonParseObject ( const char * content, uint32_t * const content
 			{
 				do
 				{
+
 					// remove '{' or ','
 					(*contentId)++;
 
@@ -134,7 +142,7 @@ static uint32_t jsonParseObject ( const char * content, uint32_t * const content
 						if ( nextValueId == (*out)[ numObj ].length )
 						{ // if next id is last -> key is not in the table
 							// get key of next element
-							tmp = realloc ( (*out)[ numObj ].key, sizeof ( char * ) * (*out)[ numObj ].length + 1 );
+							tmp = realloc ( (*out)[ numObj ].key, sizeof ( char * ) * ( (*out)[ numObj ].length + 1 ) );
 							if ( !tmp )
 							{
 								return ( __LINE__ );
@@ -165,22 +173,23 @@ static uint32_t jsonParseObject ( const char * content, uint32_t * const content
 					if ( nextValueId == (*out)[ numObj ].length )
 					{ // it's a new object
 						// get next value
-						tmp = realloc ( (*out)[ numObj ].value, sizeof ( void * ) * (*out)[ numObj ].length + 1 );
+						tmp = realloc ( (*out)[ numObj ].value, sizeof ( void * ) * ( nextValueId + 1 ) );
 						if ( !tmp )
 						{
 							return ( __LINE__ );
 						}
 						(*out)[ numObj ].value = tmp;
+						(*out)[ numObj ].value[ nextValueId ] = NULL;
 						tmp = NULL;
 
 						// set next element type
-						tmp = realloc ( (*out)[ numObj ].type, sizeof ( uint8_t ) * (*out)[ numObj ].length + 1 );
+						tmp = realloc ( (*out)[ numObj ].type, sizeof ( uint8_t ) * ( nextValueId + 1 ) );
 						if ( !tmp )
 						{
 							return ( __LINE__ );
 						}
 						(*out)[ numObj ].type = tmp;
-						(*out)[ numObj ].type[ (*out)[ numObj ].length ] = jT( undefined );
+						(*out)[ numObj ].type[ nextValueId ] = jT( undefined );
 						tmp = NULL;
 					}
 					else
@@ -190,14 +199,11 @@ static uint32_t jsonParseObject ( const char * content, uint32_t * const content
 							case jT ( bool ):
 							case jT ( double ):
 							case jT ( str ):
-							{
-								free ( (*out)[ numObj ].value[ nextValueId ] );
-								(*out)[ numObj ].value[ nextValueId ] = NULL;
-								break;
-							}
 							case jT ( obj ):
 							case jT ( array ):
 							{
+								free ( (*out)[ numObj ].value[ nextValueId ] );
+								(*out)[ numObj ].value[ nextValueId ] = NULL;
 								break;
 							}
 						}
@@ -231,18 +237,10 @@ static uint32_t jsonParseObject ( const char * content, uint32_t * const content
 							(*out)[ (*outLength) - 1 ].value = NULL;
 							(*out)[ (*outLength) - 1 ].type = NULL;
 							(*out)[ (*outLength) - 1 ].length = 0;
-							(*out)[ (*outLength) - 1 ].parent = NULL;
 
-							tmp = malloc ( sizeof ( uint32_t ) );
-							if ( !tmp )
-							{
-								return ( __LINE__ );
-							}
-							(*out)[ numObj ].value[ nextValueId ] = tmp;
-							tmp = NULL;
+							(*out)[ numObj ].value[ nextValueId ] = malloc ( sizeof ( uint32_t ) );
 
 							*( uint32_t * )((*out)[ numObj ].value[ nextValueId ]) = (*outLength) - 1;
-							(*out)[ (*outLength) - 1 ].parent = &(*out)[ numObj ];
 
 							if ( jsonParseObject ( content, contentId, (*outLength) - 1, out, outLength ) )
 							{
@@ -497,36 +495,38 @@ static uint32_t jsonFreeOne ( json_el * const data, uint32_t id )
 		}
 
 		if (  data[ id ].value &&
-			 data[ id ].value[ j ] )
+			 data[ id ].value[ j ]  &&
+			( data[ id ].type[ j ] != jT ( ptrBool ) ) &&
+			( data[ id ].type[ j ] != jT ( ptrUint8_t ) ) &&
+			( data[ id ].type[ j ] != jT ( ptrUint16_t ) ) &&
+			( data[ id ].type[ j ] != jT ( ptrUint32_t ) ) &&
+			( data[ id ].type[ j ] != jT ( ptrUint64_t ) ) &&
+			( data[ id ].type[ j ] != jT ( ptrInt8_t ) ) &&
+			( data[ id ].type[ j ] != jT ( ptrInt16_t ) ) &&
+			( data[ id ].type[ j ] != jT ( ptrInt32_t ) ) &&
+			( data[ id ].type[ j ] != jT ( ptrInt64_t ) ) &&
+			( data[ id ].type[ j ] != jT ( ptrFloat ) ) &&
+			( data[ id ].type[ j ] != jT ( ptrDouble ) ) &&
+			( data[ id ].type[ j ] != jT ( ptrStr ) ) )
 		{
-			if ( (  data[ id ].type[ j ] == jT( float ) ) ||
-				(  data[ id ].type[ j ] == jT( str ) ) ||
-				(  data[ id ].type[ j ] == jT( bool ) ) ||
-				(  data[ id ].type[ j ] == jT( array ) ) ||
-				(  data[ id ].type[ j ] == jT( obj ) ) )
-			{
-				free (  data[ id ].value[ j ] );
-			}
-			else
-			{ // undefined
-			}
-			 data[ id ].value[ j ] = NULL;
+			free (  data[ id ].value[ j ] );
+			data[ id ].value[ j ] = NULL;
 		}
 	}
 
-	if (  data[ id ].key )
+	if ( data[ id ].key )
 	{
 		free (  data[ id ].key );
 		 data[ id ].key = NULL;
 	}
 
-	if (  data[ id ].value )
+	if ( data[ id ].value )
 	{
 		free (  data[ id ].value );
 		 data[ id ].value = NULL;
 	}
 
-	if (  data[ id ].type )
+	if ( data[ id ].type )
 	{
 		free (  data[ id ].type );
 		 data[ id ].type = NULL;
@@ -574,7 +574,6 @@ uint32_t jsonParseString ( char * const str, json_el ** out, uint32_t * length )
 	(*out)->value = NULL;
 	(*out)->type = NULL;
 	(*out)->length = 0;
-	(*out)->parent = NULL;
 
 	return ( jsonParseObject ( str, &objId, 0, out, length ) );
 }
@@ -647,6 +646,11 @@ uint32_t jsonPrintFile ( json_el * const data, const uint32_t id, const uint8_t 
 		return ( __LINE__ );
 	}
 
+	if ( indent > 2 )
+	{
+		return ( 0 );
+	}
+
 	if ( !indent )
 	{
 		if ( data[ id ].key )
@@ -683,61 +687,73 @@ uint32_t jsonPrintFile ( json_el * const data, const uint32_t id, const uint8_t 
 				fprintf ( outFile, "undefined" );
 				break;
 			}
+			case jT( ptrBool ):
 			case jT( bool ):
 			{
 				fprintf ( outFile, "%s", ( *( uint8_t * )data[ id ].value[ i ] )?"true":"false" );
 				break;
 			}
+			case jT( ptrUint8_t ):
 			case jT( uint8_t ):
 			{
 				fprintf ( outFile, "%u", *( uint8_t * )data[ id ].value[ i ] );
 				break;
 			}
+			case jT( ptrUint16_t ):
 			case jT( uint16_t ):
 			{
 				fprintf ( outFile, "%u", *( uint16_t * )data[ id ].value[ i ] );
 				break;
 			}
+			case jT( ptrUint32_t ):
 			case jT( uint32_t ):
 			{
 				fprintf ( outFile, "%u", *( uint32_t * )data[ id ].value[ i ] );
 				break;
 			}
+			case jT( ptrUint64_t ):
 			case jT( uint64_t ):
 			{
 				fprintf ( outFile, "%lu", *( uint64_t * )data[ id ].value[ i ] );
 				break;
 			}
+			case jT( ptrInt8_t ):
 			case jT( int8_t ):
 			{
 				fprintf ( outFile, "%d", *( int8_t * )data[ id ].value[ i ] );
 				break;
 			}
+			case jT( ptrInt16_t ):
 			case jT( int16_t ):
 			{
 				fprintf ( outFile, "%d", *( int16_t * )data[ id ].value[ i ] );
 				break;
 			}
+			case jT( ptrInt32_t ):
 			case jT( int32_t ):
 			{
 				fprintf ( outFile, "%d", *( int32_t * )data[ id ].value[ i ] );
 				break;
 			}
+			case jT( ptrInt64_t ):
 			case jT( int64_t ):
 			{
 				fprintf ( outFile, "%ld", *( int64_t * )data[ id ].value[ i ] );
 				break;
 			}
+			case jT( ptrFloat ):
 			case jT( float ):
 			{
 				fprintf ( outFile, "%f", *( float * )data[ id ].value[ i ] );
 				break;
 			}
+			case jT( ptrDouble ):
 			case jT( double ):
 			{
 				fprintf ( outFile, "%lf", *( double * )data[ id ].value[ i ] );
 				break;
 			}
+			case jT( ptrStr ):
 			case jT( str ):
 			{
 				fprintf ( outFile, "\"%s\"", ( char * )(data[ id ].value[ i ]) );
@@ -786,6 +802,7 @@ uint32_t jsonPrintFile ( json_el * const data, const uint32_t id, const uint8_t 
 			fprintf ( outFile, "]\n" );
 		}
 	}
+
 	return ( 0 );
 }
 
@@ -933,6 +950,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 				sprintf ( &(*outStr)[ strlen( *outStr ) ], "undefined" );
 				break;
 			}
+			case jT( ptrBool ):
 			case jT( bool ):
 			{
 				if ( flag & JPS_LEN_SET ) // if outLength is set verify string size
@@ -946,6 +964,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 				sprintf ( &(*outStr)[ strlen( *outStr ) ], "%s", ( *( uint8_t * )data[ id ].value[ i ] )?"true":"false" );
 				break;
 			}
+			case jT( ptrInt8_t ):
 			case jT( int8_t ):
 			{
 				if ( flag & JPS_LEN_SET )
@@ -964,6 +983,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 				}
 				break;
 			}
+			case jT( ptrInt16_t ):
 			case jT( int16_t ):
 			{
 				if ( flag & JPS_LEN_SET )
@@ -982,6 +1002,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 				}
 				break;
 			}
+			case jT( ptrInt32_t ):
 			case jT( int32_t ):
 			{
 				if ( flag & JPS_LEN_SET )
@@ -1000,6 +1021,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 				}
 				break;
 			}
+			case jT( ptrInt64_t ):
 			case jT( int64_t ):
 			{
 				if ( flag & JPS_LEN_SET )
@@ -1018,6 +1040,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 				}
 				break;
 			}
+			case jT( ptrUint8_t ):
 			case jT( uint8_t ):
 			{
 				if ( flag & JPS_LEN_SET )
@@ -1036,6 +1059,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 				}
 				break;
 			}
+			case jT( ptrUint16_t ):
 			case jT( uint16_t ):
 			{
 				if ( flag & JPS_LEN_SET )
@@ -1054,6 +1078,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 				}
 				break;
 			}
+			case jT( ptrUint32_t ):
 			case jT( uint32_t ):
 			{
 				if ( flag & JPS_LEN_SET )
@@ -1072,6 +1097,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 				}
 				break;
 			}
+			case jT( ptrUint64_t ):
 			case jT( uint64_t ):
 			{
 				if ( flag & JPS_LEN_SET )
@@ -1090,6 +1116,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 				}
 				break;
 			}
+			case jT( ptrFloat ):
 			case jT( float ):
 			{
 				if ( flag & JPS_LEN_SET )
@@ -1108,6 +1135,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 				}
 				break;
 			}
+			case jT( ptrDouble ):
 			case jT( double ):
 			{
 				if ( flag & JPS_LEN_SET )
@@ -1126,6 +1154,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 				}
 				break;
 			}
+			case jT( ptrStr ):
 			case jT( str ):
 			{
 				if ( ( flag & JPS_OUT_NULL ) &&
@@ -1219,7 +1248,6 @@ uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent )
 uint32_t jsonFree ( json_el ** data, uint32_t length )
 {
 	uint32_t i = 0;
-
 	if ( !data )
 	{
 		errno = EINVAL;
@@ -1234,11 +1262,37 @@ uint32_t jsonFree ( json_el ** data, uint32_t length )
 	}
 
 	free ( *data );
+	*data = NULL;
 
 	return ( 0 );
 }
 
 void * jsonGet ( const json_el * const data, const uint32_t id, const char * const key, void ** const value, JSON_TYPE * const type )
+{
+	uint32_t i = 0;
+
+	for ( i = 0; i < data[ id ].length; i++ )
+	{
+		if ( !strcmp ( data[ id ].key[ i ], key ) )
+		{
+			if ( type )
+			{ // if type pointer defined return type value
+				*type = data[ id ].type[ i ];
+			}
+
+			if ( !value )
+			{ // if value NULL
+				return ( data[ id ].value[ i ] );
+			}
+
+			*value = data[ id ].value[ i ];
+			return ( *value );
+		}
+	}
+	return ( NULL );
+}
+
+void * jsonGetRecursive ( const json_el * const data, const uint32_t id, const char * const key, void ** const value, JSON_TYPE * const type )
 {
 	uint32_t i = 0;
 	void * tmp = NULL;
@@ -1276,7 +1330,7 @@ void * jsonGet ( const json_el * const data, const uint32_t id, const char * con
 
 uint32_t jsonSet ( json_el * const data, const uint32_t id, const char * const key, void * const value, const JSON_TYPE type )
 {
-	uint32_t i = 0;
+	uint32_t elID = 0;
 	void * tmp = NULL;
 		
 	if ( ( type == jT ( obj ) ) ||
@@ -1285,54 +1339,152 @@ uint32_t jsonSet ( json_el * const data, const uint32_t id, const char * const k
 		errno = EINVAL;
 		return ( __LINE__ );
 	}
-	for ( i = 0; i < data[ id ].length; i++ )
-	{
-		if ( !strcmp ( data[ id ].key[ i ], key ) )
+
+	if ( data[ id ].key )
+	{ // parrent is obj
+		for ( elID = 0; elID < data[ id ].length; elID++ )
 		{
-			break;
-		}
-		else if ( data[ id ].type[ i ] == jT ( obj ) )
-		{
-			if ( !jsonSet ( data, *( uint32_t * )data[ id ].value[ i ], key, value, type ) )
+			if ( !strcmp ( data[ id ].key[ elID ], key ) )
 			{
-				return ( 0 );
+				break;
 			}
 		}
 	}
+	else
+	{ // parrent is array
+		if ( key )
+		{
+			#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
+			// the array count is in 32 bits
+			elID = (uint32_t)( key );
+			#pragma GCC diagnostic pop
+		}
+		else
+		{
+			elID = data[ id ].length;
+		}
+	}
 
-	if ( i >= data[ id ].length )
+	tmp = 0;
+
+	if ( elID >= data[ id ].length )
 	{
-		tmp = realloc ( data[ id ].key, sizeof ( char * ) * data[ id ].length + 1 );
-		if ( !tmp )
-		{
-			return ( __LINE__ );
-		}
-		data[ id ].key = tmp;
-		tmp = NULL;
+		if ( key )
+		{ // only need if parrent is obj
+			tmp = realloc ( data[ id ].key, sizeof ( char * ) * ( data[ id ].length + 1 ) );
+			if ( !tmp )
+			{
+				return ( __LINE__ );
+			}
+			data[ id ].key = tmp;
+			tmp = NULL;
 
-		data[ id ].key[ data[ id ].length ] = NULL;
+			data[ id ].key[ data[ id ].length ] = NULL;
 
-		tmp = malloc ( strlen ( key ) + 1 );
-		if ( !tmp )
-		{
-			return ( __LINE__ );
+			tmp = malloc ( strlen ( key ) + 1 );
+			if ( !tmp )
+			{
+				return ( __LINE__ );
+			}
+			data[ id ].key[ data[ id ].length ] = tmp;
+			strcpy ( data[ id ].key[ data[ id ].length ], key );
+			tmp = NULL;
 		}
-		data[ id ].key[ data[ id ].length ] = tmp;
-		strcpy ( data[ id ].key[ data[ id ].length ], key );
-		tmp = NULL;
 
 		// get next value
-		tmp = realloc (data[ id ].value, sizeof ( void * ) * data[ id ].length + 1 );
+		tmp = realloc (data[ id ].value, sizeof ( void * ) * ( data[ id ].length + 1 ) );
 		if ( !tmp )
 		{
 			return ( __LINE__ );
 		}
 		data[ id ].value = tmp;
-		data[ id ].value[ data[ id ].length ] = value;
 		tmp = NULL;
 
+		// if value pointer provided
+		if ( ( value == NULL ) ||
+			( type == jT ( ptrBool ) ) ||
+			( type == jT ( ptrUint8_t ) ) ||
+			( type == jT ( ptrUint16_t ) ) ||
+			( type == jT ( ptrUint32_t ) ) ||
+			( type == jT ( ptrUint64_t ) ) ||
+			( type == jT ( ptrInt8_t ) ) ||
+			( type == jT ( ptrInt16_t ) ) ||
+			( type == jT ( ptrInt32_t ) ) ||
+			( type == jT ( ptrInt64_t ) ) ||
+			( type == jT ( ptrFloat ) ) ||
+			( type == jT ( ptrDouble ) ) ||
+			( type == jT ( ptrStr ) ) )
+		{ // if it's a pointer or NULL value soo no need memory alloc
+
+			data[ id ].value[ data[ id ].length ] = value;
+			if ( value )
+			{
+				printf ( "%lf\n", *(float *)value );
+			}
+		}
+		else
+		{ // taht need alloc
+			// get the memory size need to be allocated
+			switch ( type )
+			{
+				case jT ( bool ):
+				case jT ( int8_t ):
+				case jT ( uint8_t ):
+				{
+					tmp = ( void * )( 1 );
+					break;
+				}
+				case jT ( int16_t ):
+				case jT ( uint16_t ):
+				{
+					tmp = ( void * )( sizeof ( int16_t ) );
+					break;
+				}
+				case jT ( int32_t ):
+				case jT ( uint32_t ):
+				case jT ( float ):
+				{
+					tmp = ( void * )( sizeof ( int32_t ) );
+					break;
+				}
+				case jT ( int64_t ):
+				case jT ( uint64_t ):
+				case jT ( double ):
+				{
+					tmp = ( void * )( sizeof ( int64_t ) );
+					break;
+				}
+				case jT ( str ):
+				{
+					tmp = ( void * )( strlen ( value ) + 1 );
+					break;
+				}
+				default:
+				{
+					break;
+				}
+			}
+
+			// alloc memory
+			#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
+			// tmp was used as buffer to don't define another var
+			data[ id ].value[ data[ id ].length ] = malloc ( (uint32_t)tmp );
+			#pragma GCC diagnostic pop
+
+			if ( !data[ id ].value[ data[ id ].length ] )
+			{ // in case of memory allocation failled
+				return ( __LINE__ );
+			}
+
+			// copy data
+			#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
+			// tmp was used as buffer to don't define another var
+			memcpy ( data[ id ].value[ data[ id ].length ], value, (uint32_t)tmp );
+			#pragma GCC diagnostic pop
+		}
+
 		// set next element type
-		tmp = realloc ( data[ id ].type, sizeof ( uint8_t ) * data[ id ].length + 1 );
+		tmp = realloc ( data[ id ].type, sizeof ( uint8_t ) * ( data[ id ].length + 1 ) );
 		if ( !tmp )
 		{
 			return ( __LINE__ );
@@ -1345,37 +1497,145 @@ uint32_t jsonSet ( json_el * const data, const uint32_t id, const char * const k
 	}
 	else
 	{
-		switch ( data[ id ].type[ i ] )
-		{
-			case jT ( bool ):
-			case jT ( int8_t ):
-			case jT ( int16_t ):
-			case jT ( int32_t ):
-			case jT ( int64_t ):
-			case jT ( uint8_t ):
-			case jT ( uint16_t ):
-			case jT ( uint32_t ):
-			case jT ( uint64_t ):
-			case jT ( float ):
-			case jT ( double ):
-			case jT ( str ):
+		free ( data[ id ].value[ elID ] );
+		data[ id ].value[ elID ] = NULL;
+		
+		// if value pointer provided
+		if ( ( value == NULL ) ||
+			( type == jT ( ptrBool ) ) ||
+			( type == jT ( ptrUint8_t ) ) ||
+			( type == jT ( ptrUint16_t ) ) ||
+			( type == jT ( ptrUint32_t ) ) ||
+			( type == jT ( ptrUint64_t ) ) ||
+			( type == jT ( ptrInt8_t ) ) ||
+			( type == jT ( ptrInt16_t ) ) ||
+			( type == jT ( ptrInt32_t ) ) ||
+			( type == jT ( ptrInt64_t ) ) ||
+			( type == jT ( ptrFloat ) ) ||
+			( type == jT ( ptrDouble ) ) ||
+			( type == jT ( ptrStr ) ) )
+		{ // if it's a pointer or NULL value soo no need memory alloc
+			data[ id ].value[ data[ id ].length ] = value;
+		}
+		else
+		{ // taht need alloc
+			// get the memory size need to be allocated
+			switch ( type )
 			{
-				free ( data[ id ].value[ i ] );
-				break;
+				case jT ( bool ):
+				case jT ( int8_t ):
+				case jT ( uint8_t ):
+				{
+					tmp = ( void * )( 1 );
+					break;
+				}
+				case jT ( int16_t ):
+				case jT ( uint16_t ):
+				{
+					tmp = ( void * )( sizeof ( int16_t ) );
+					break;
+				}
+				case jT ( int32_t ):
+				case jT ( uint32_t ):
+				case jT ( float ):
+				{
+					tmp = ( void * )( sizeof ( int32_t ) );
+					break;
+				}
+				case jT ( int64_t ):
+				case jT ( uint64_t ):
+				case jT ( double ):
+				{
+					tmp = ( void * )( sizeof ( int64_t ) );
+					break;
+				}
+				case jT ( str ):
+				{
+					tmp = ( void * )( strlen ( value ) + 1 );
+					break;
+				}
+				default:
+				{
+					break;
+				}
 			}
-			case jT ( obj ):
-			case jT ( array ):
-			{
-				jsonFreeOne ( data, *( uint32_t * )data[ id ].value[ i ] );
-				data[ id ].value[ i ] = NULL;
-				data[ id ].type[ i ] = jT ( undefined );
-				break;
+
+			// alloc memory
+			#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
+			// tmp was used as buffer to don't define another var
+			data[ id ].value[ elID ] = malloc ( (uint32_t)tmp );
+			#pragma GCC diagnostic pop
+			
+			if ( !data[ id ].value[ elID ] )
+			{ // in case of memory allocation failled
+				return ( __LINE__ );
 			}
+
+			// copy data
+			#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
+			// tmp was used as buffer to don't define another var
+			memcpy ( data[ id ].value[ elID ], value, (uint32_t)tmp );
+			#pragma GCC diagnostic pop
 		}
 
-		data[ id ].value[ i ] = value;
-		data[ id ].type[ i ] = type;
+		data[ id ].type[ elID ] = type;
 	}
+
+	return ( 0 );
+}
+
+uint32_t jsonSetObj ( json_el ** const data, const uint32_t id, const char * const key, const JSON_TYPE type, uint32_t * const length )
+{
+	uint32_t elID = 0;
+	void * tmp = NULL;
+		
+	if ( !( type == jT ( obj ) ) &&
+		!( type == jT ( array ) ) )
+	{
+		errno = EINVAL;
+		return ( __LINE__ );
+	}
+
+
+	if ( jsonSet ( *data, id, key, NULL, jT ( uint8_t ) ) )
+	{
+		return ( __LINE__ );
+	}
+
+	for ( elID = 0; elID < (*data)[ id ].length; elID++ )
+	{
+		if ( !strcmp ( (*data)[ id ].key[ elID ], key ) )
+		{
+			break;
+		}
+	}
+
+	if ( elID >= (*data)[ id ].length )
+	{
+		return ( __LINE__ );
+	}
+	else
+	{
+		tmp = realloc ( (*data), sizeof ( json_el ) * ( *length + 1 ) );
+		if ( !tmp )
+		{
+			return ( __LINE__ );
+		}
+		(*data) = tmp;
+		tmp = NULL;
+
+		(*data)[ id ].value[ elID ] = malloc ( sizeof ( *length ) );
+		*( uint32_t * )((*data)[ id ].value[ elID ]) = *length;
+		(*data)[ id ].type[ elID ] = type;
+
+		(*data)[ *length ].key = NULL;
+		(*data)[ *length ].value = NULL;
+		(*data)[ *length ].type = NULL;
+		(*data)[ *length ].length = 0;
+
+		(*length)++;
+	}
+
 	return ( 0 );
 }
 
