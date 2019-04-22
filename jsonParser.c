@@ -714,7 +714,7 @@ uint32_t jsonPrintFile ( json_el * const data, const uint32_t id, const uint8_t 
 			case jT( ptrUint64_t ):
 			case jT( uint64_t ):
 			{
-				fprintf ( outFile, "%lu", *( uint64_t * )data[ id ].value[ i ] );
+				fprintf ( outFile, "%llu", *( uint64_t * )data[ id ].value[ i ] );
 				break;
 			}
 			case jT( ptrInt8_t ):
@@ -738,7 +738,7 @@ uint32_t jsonPrintFile ( json_el * const data, const uint32_t id, const uint8_t 
 			case jT( ptrInt64_t ):
 			case jT( int64_t ):
 			{
-				fprintf ( outFile, "%ld", *( int64_t * )data[ id ].value[ i ] );
+				fprintf ( outFile, "%lld", *( int64_t * )data[ id ].value[ i ] );
 				break;
 			}
 			case jT( ptrFloat ):
@@ -1026,7 +1026,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 			{
 				if ( flag & JPS_LEN_SET )
 				{
-					sprintf ( tmpStr, "%ld", *( int64_t * )data[ id ].value[ i ] );
+					sprintf ( tmpStr, "%lld", *( int64_t * )data[ id ].value[ i ] );
 					// verify if JSON is not too big to outStr 
 					if ( ( strlen( *outStr ) + strlen ( tmpStr ) + 2 ) > *outLength )
 					{
@@ -1036,7 +1036,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 				}
 				else
 				{
-					sprintf ( &(*outStr)[ strlen( *outStr ) ], "%ld", *( int64_t * )data[ id ].value[ i ] );
+					sprintf ( &(*outStr)[ strlen( *outStr ) ], "%lld", *( int64_t * )data[ id ].value[ i ] );
 				}
 				break;
 			}
@@ -1102,7 +1102,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 			{
 				if ( flag & JPS_LEN_SET )
 				{
-					sprintf ( tmpStr, "%lu", *( uint64_t * )data[ id ].value[ i ] );
+					sprintf ( tmpStr, "%llu", *( uint64_t * )data[ id ].value[ i ] );
 					// verify if JSON is not too big to outStr 
 					if ( ( strlen( *outStr ) + strlen ( tmpStr ) + 2 ) > *outLength )
 					{
@@ -1112,7 +1112,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 				}
 				else
 				{
-					sprintf ( &(*outStr)[ strlen( *outStr ) ], "%lu", *( uint64_t * )data[ id ].value[ i ] );
+					sprintf ( &(*outStr)[ strlen( *outStr ) ], "%llu", *( uint64_t * )data[ id ].value[ i ] );
 				}
 				break;
 			}
