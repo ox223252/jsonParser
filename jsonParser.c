@@ -904,6 +904,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 			else if ( flag & JPS_LEN_SET )
 			{
 				// verify if JSON is not too big to outStr 
+				printf ( "%d\n", __LINE__ );
 				if ( ( strlen( *outStr ) + strlen ( data[ id ].key[ i ] ) + 2 ) > *outLength )
 				{
 					return ( __LINE__ );
@@ -1714,37 +1715,41 @@ int __attribute__((weak)) main ( void )
 			printf ( "%s\n", ( char * ) value );
 		}
 
+		if ( value )
+		{
+			free ( value );
+			value = NULL;
+		}
+
+		// try to put json in a small string it should be fail
+		length = 20;
+		printf ( "Object error:\n" );
+		if ( jsonPrintString ( data, 0, ( char ** )&value, &length ) )
+		{ // normal case on failure
+			if ( value )
+			{ // failure but some work already done
+				printf ( "%s %lu\n", ( char * ) value, strlen ( ( char * ) value ) );
+			}
+		}
+
+		if ( value )
+		{
+			free ( value );
+			value = NULL;
+		}
+
 		if ( data )
 		{
 			jsonFree ( &data, dataLength );
 			dataLength = 0;
 		}
 
-		if ( value )
-		{
-			free ( value );
-			value = NULL;
-		}
 		printf ( "\n" );
 	}
 
-	// try to put json in a small string it should be fail
-	length = 20;
-	if ( jsonPrintString ( data, 0, ( char ** )&value, &length ) )
-	{ // normal case on failure
-		if ( value )
-		{ // failure but some work already done
-			printf ( "%s %lu\n", ( char * ) value, strlen ( ( char * ) value ) );
-		}
-		
-		if ( value )
-		{
-			free ( value );
-			value = NULL;
-		}
-	}
 
 	// create json and feed it
+	printf ( "New object:\n" );
 	if ( jsonParseString ( "{}", &data, &dataLength ) )
 	{
 		printf ( "error\n" );
