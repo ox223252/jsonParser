@@ -215,12 +215,12 @@ int main ( void )
 
 ### display output:
 ```Shel
-> gcc main.c jsonParser.c -Wall -DDEBUG_MODE -g && valgrind ./a.out
-==27731== Memcheck, a memory error detector
-==27731== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
-==27731== Using Valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
-==27731== Command: ./a.out
-==27731==
+> gcc jsonParser.c -Wall && valgrind ./a.out
+==862== Memcheck, a memory error detector
+==862== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==862== Using Valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
+==862== Command: ./a.out
+==862==
 Object from file:
 {
         "a":"bob",
@@ -305,7 +305,10 @@ Object form string:
         }
 ]
 [1.000000,2.000000,3.000000,4.000000,5.000000,6.000000,7.000000,{"alpha":"test"}]
+Object error:
+[1.000000,2.000000, 19
 
+New object:
 {
         "bob":6,
         "alice":"au pays de merveilles",
@@ -326,13 +329,13 @@ Object form string:
         12.300000,
         17.000000
 ]
-==27731==
-==27731== HEAP SUMMARY:
-==27731==     in use at exit: 0 bytes in 0 blocks
-==27731==   total heap usage: 286 allocs, 286 frees, 14,342 bytes allocated
-==27731==
-==27731== All heap blocks were freed -- no leaks are possible
-==27731==
-==27731== For counts of detected and suppressed errors, rerun with: -v
-==27731== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+==862==
+==862== HEAP SUMMARY:
+==862==     in use at exit: 0 bytes in 0 blocks
+==862==   total heap usage: 287 allocs, 287 frees, 14,362 bytes allocated
+==862==
+==862== All heap blocks were freed -- no leaks are possible
+==862==
+==862== For counts of detected and suppressed errors, rerun with: -v
+==862== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
 ```
