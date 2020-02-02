@@ -632,6 +632,7 @@ uint32_t jsonParseFile ( const char * file, json_el ** out, uint32_t * length )
 	return ( ret );
 }
 
+#pragma GCC diagnostic ignored "-Wformat"
 uint32_t jsonPrintFile ( json_el * const data, const uint32_t id, const uint8_t indent, FILE * const outFile )
 {
 	uint32_t i = 0; // loop counter
@@ -1240,6 +1241,7 @@ uint32_t jsonPrintString ( json_el * const data, const uint32_t id, char ** cons
 
 	return ( 0 );
 }
+#pragma GCC diagnostic pop
 
 uint32_t jsonPrint ( json_el * data, uint32_t id, uint8_t indent )
 {
@@ -1654,58 +1656,76 @@ int __attribute__((weak)) main ( void )
 	uint64_t length = 0;
 	JSON_TYPE type = jT ( undefined );
 
-
-	printf ( "\nFirst object:\n" );
+	// read file part
+	printf ( "Object from file:\n" );
 	if ( jsonParseFile ( "file.json", &data, &dataLength ) )
 	{
 		printf ( "error\n");
 	}
-	jsonPrint ( data, 0, 0 );
-
-	printf ( "\nElement:\n" );
-	jsonGetRecursive ( data, 0, "h1", &value, &type );
-
-	printf ( "h1 value  = %s type : %d\n", (char *)value, type );
-	value = NULL;
-
-	printf ( "\nFirst object with replacements:\n" );
-	if ( jsonSet ( data, 0, "h", "ceci est un long test qui va remplacer la valeur de G", jT ( str ) ) )
+	else
 	{
-		printf ( "error\n" );
+		jsonPrint ( data, 0, 0 );
+
+		printf ( "\nElement:\n" );
+		jsonGetRecursive ( data, 0, "h1", &value, &type );
+
+		printf ( "h1 value  = %s type : %d\n", (char *)value, type );
+
+		printf ( "\nFirst object with replacements:\n" );
+		if ( jsonSet ( data, 0, "h", "ceci est un long test qui va remplacer la valeur de G", jT ( str ) ) )
+		{
+			printf ( "error\n" );
+		}
+
+		if ( jsonSet ( data, 0, "l", "ajout en L" , jT ( str ) ) )
+		{
+			printf ( "error\n" );
+		}
+		jsonPrint ( data, 0, 0 );
+
+		//value non need to be freed, is only a pointer on data array
+		value = NULL;
+
+		if ( data )
+		{
+			jsonFree ( &data, dataLength );
+			dataLength = 0;
+		}
+		printf ( "\n" );
 	}
 
-	if ( jsonSet ( data, 0, "l", "ajout en L" , jT ( str ) ) )
+	// read json from string
+	printf ( "Object form string:\n" );
+	if ( jsonParseString ( "[1,2,3,4,5,6,7,{\"alpha\":\"test\"}]", &data, &dataLength ) )
 	{
-		printf ( "error\n" );
-	}
-	jsonPrint ( data, 0, 0 );
-
-	if ( data )
-	{
-		jsonFree ( &data, dataLength );
-		dataLength = 0;
-	}
-
-
-	jsonParseString ( "[1,2,3,4,5,6,7,{\"alpha\":\"test\"}]", &data, &dataLength );
-
-	printf ( "\nSecond object:\n" );
-	jsonPrint ( data, 0, 0 );
-
-	// get json in string
-	if ( jsonPrintString ( data, 0, ( char ** )&value, NULL ) )
-	{
-		// probleme
+		printf ( "error\n");
 	}
 	else
 	{
-		printf ( "%s\n", ( char * ) value );
-	}
+		jsonPrint ( data, 0, 0 );
 
-	if ( value )
-	{
-		free ( value );
-		value = NULL;
+		// get json in string
+		if ( jsonPrintString ( data, 0, ( char ** )&value, NULL ) )
+		{
+			// probleme
+		}
+		else
+		{
+			printf ( "%s\n", ( char * ) value );
+		}
+
+		if ( data )
+		{
+			jsonFree ( &data, dataLength );
+			dataLength = 0;
+		}
+
+		if ( value )
+		{
+			free ( value );
+			value = NULL;
+		}
+		printf ( "\n" );
 	}
 
 	// try to put json in a small string it should be fail
@@ -1716,57 +1736,58 @@ int __attribute__((weak)) main ( void )
 		{ // failure but some work already done
 			printf ( "%s %lu\n", ( char * ) value, strlen ( ( char * ) value ) );
 		}
-	}
-
-	if ( value )
-	{
-		free ( value );
-		value = NULL;
-	}
-
-
-
-	if ( data )
-	{
-		jsonFree ( &data, dataLength );
-		dataLength = 0;
-	}
-
-
-	jsonParseString ( "{}", &data, &dataLength );
-
-	jsonSet ( data, 0, "bob", &bob, jT ( uint8_t ) );
-	jsonSet ( data, 0, "alice", &alice, jT ( uint8_t ) );
-	jsonSet ( data, 0, "alice", "au pays de merveilles", jT ( str ) );
-
-	jsonSetObj ( &data, 0, "mike", jT ( obj ), &dataLength );
-
-	jsonSet ( data, dataLength - 1, "alice2", &alice2, jT ( uint8_t ) );
-	jsonSet ( data, dataLength - 1, "alice3", &test, jT ( float ) );
-	jsonSetObj ( &data, dataLength - 1, "array", jT ( array ), &dataLength );
-	jsonSet ( data, dataLength - 1, NULL, &test, jT ( float ) );
-
-	jsonPrint ( data, 0, 0 );
-
-	// ici on change une donn
-	if ( jsonGetRecursive ( data, 0, "array", &value, &type ) )
-	{
-		jsonSet ( data, dataLength - 1, NULL, &test, jT ( ptrFloat ) );
-		if ( type == jT ( array ) ||
-			type == jT ( obj ) )
+		
+		if ( value )
 		{
-			jsonPrint ( data, *(uint32_t*)value, 0 );
-		}
-		test = 17.0;
-		if ( type == jT ( array ) ||
-			type == jT ( obj ) )
-		{
-			jsonPrint ( data, *(uint32_t*)value, 0 );
+			free ( value );
+			value = NULL;
 		}
 	}
 
-	jsonFree ( &data, dataLength );
-	dataLength = 0;
+	// create json and feed it
+	if ( jsonParseString ( "{}", &data, &dataLength ) )
+	{
+		printf ( "error\n" );
+	}
+	else
+	{
+		jsonSet ( data, 0, "bob", &bob, jT ( uint8_t ) );
+		jsonSet ( data, 0, "alice", &alice, jT ( uint8_t ) );
+		jsonSet ( data, 0, "alice", "au pays de merveilles", jT ( str ) );
+
+		jsonSetObj ( &data, 0, "mike", jT ( obj ), &dataLength );
+
+		jsonSet ( data, dataLength - 1, "alice2", &alice2, jT ( uint8_t ) );
+		jsonSet ( data, dataLength - 1, "alice3", &test, jT ( float ) );
+		jsonSetObj ( &data, dataLength - 1, "array", jT ( array ), &dataLength );
+		jsonSet ( data, dataLength - 1, NULL, &test, jT ( float ) );
+
+		jsonPrint ( data, 0, 0 );
+
+		// here an exemple of using pointer in json, usefull for
+		// periodic messages from json like MQTT publish
+		if ( jsonGetRecursive ( data, 0, "array", &value, &type ) )
+		{
+			jsonSet ( data, dataLength - 1, NULL, &test, jT ( ptrFloat ) );
+			if ( type == jT ( array ) ||
+				type == jT ( obj ) )
+			{
+				jsonPrint ( data, *(uint32_t*)value, 0 );
+			}
+			test = 17.0;
+			if ( type == jT ( array ) ||
+				type == jT ( obj ) )
+			{
+				jsonPrint ( data, *(uint32_t*)value, 0 );
+			}
+		}
+
+		if ( data )
+		{
+			jsonFree ( &data, dataLength );
+			dataLength = 0;
+		}
+	}
 
 	return ( 0 );
 }
