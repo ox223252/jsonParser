@@ -462,6 +462,7 @@ static uint32_t jsonRemoveSpaces ( char * const str, uint64_t * const strSize )
 
 		if ( ( str[ i ] == ' ' ) ||
 			( str[ i ] == '\n' ) ||
+			( str[ i ] == '\r' ) ||
 			( str[ i ] == '\t' ) )
 		{ // else remove space, brake line, or tab
 			for ( j = i; j < (*strSize) - 1; j++ )
@@ -1296,7 +1297,7 @@ void * jsonGetRecursive ( const json_el * const data, const uint32_t id, const c
 {
 	uint32_t i = 0;
 	void * tmp = NULL;
-		
+
 
 	for ( i = 0; i < data[ id ].length; i++ )
 	{
@@ -1332,7 +1333,7 @@ uint32_t jsonSet ( json_el * const data, const uint32_t id, const char * const k
 {
 	uint32_t elID = 0;
 	void * tmp = NULL;
-		
+
 	if ( ( type == jT ( obj ) ) ||
 		( type == jT ( array ) ) )
 	{
@@ -1499,7 +1500,7 @@ uint32_t jsonSet ( json_el * const data, const uint32_t id, const char * const k
 	{
 		free ( data[ id ].value[ elID ] );
 		data[ id ].value[ elID ] = NULL;
-		
+
 		// if value pointer provided
 		if ( ( value == NULL ) ||
 			( type == jT ( ptrBool ) ) ||
@@ -1565,7 +1566,7 @@ uint32_t jsonSet ( json_el * const data, const uint32_t id, const char * const k
 			// tmp was used as buffer to don't define another var
 			data[ id ].value[ elID ] = malloc ( (uint32_t)tmp );
 			#pragma GCC diagnostic pop
-			
+
 			if ( !data[ id ].value[ elID ] )
 			{ // in case of memory allocation failled
 				return ( __LINE__ );
@@ -1588,7 +1589,7 @@ uint32_t jsonSetObj ( json_el ** const data, const uint32_t id, const char * con
 {
 	uint32_t elID = 0;
 	void * tmp = NULL;
-		
+
 	if ( !( type == jT ( obj ) ) &&
 		!( type == jT ( array ) ) )
 	{
@@ -1639,3 +1640,133 @@ uint32_t jsonSetObj ( json_el ** const data, const uint32_t id, const char * con
 	return ( 0 );
 }
 
+int __attribute__((weak)) main ( void )
+{
+	json_el *data = NULL;
+	uint32_t dataLength = 0;
+
+	uint8_t bob = 6;
+	uint8_t alice = 6;
+	uint8_t alice2 = 7;
+	float test = 12.3;
+
+	void * value = NULL;
+	uint64_t length = 0;
+	JSON_TYPE type = jT ( undefined );
+
+
+	printf ( "\nFirst object:\n" );
+	if ( jsonParseFile ( "file.json", &data, &dataLength ) )
+	{
+		printf ( "error\n");
+	}
+	jsonPrint ( data, 0, 0 );
+
+	printf ( "\nElement:\n" );
+	jsonGetRecursive ( data, 0, "h1", &value, &type );
+
+	printf ( "h1 value  = %s type : %d\n", (char *)value, type );
+	value = NULL;
+
+	printf ( "\nFirst object with replacements:\n" );
+	if ( jsonSet ( data, 0, "h", "ceci est un long test qui va remplacer la valeur de G", jT ( str ) ) )
+	{
+		printf ( "error\n" );
+	}
+
+	if ( jsonSet ( data, 0, "l", "ajout en L" , jT ( str ) ) )
+	{
+		printf ( "error\n" );
+	}
+	jsonPrint ( data, 0, 0 );
+
+	if ( data )
+	{
+		jsonFree ( &data, dataLength );
+		dataLength = 0;
+	}
+
+
+	jsonParseString ( "[1,2,3,4,5,6,7,{\"alpha\":\"test\"}]", &data, &dataLength );
+
+	printf ( "\nSecond object:\n" );
+	jsonPrint ( data, 0, 0 );
+
+	// get json in string
+	if ( jsonPrintString ( data, 0, ( char ** )&value, NULL ) )
+	{
+		// probleme
+	}
+	else
+	{
+		printf ( "%s\n", ( char * ) value );
+	}
+
+	if ( value )
+	{
+		free ( value );
+		value = NULL;
+	}
+
+	// try to put json in a small string it should be fail
+	length = 20;
+	if ( jsonPrintString ( data, 0, ( char ** )&value, &length ) )
+	{ // normal case on failure
+		if ( value )
+		{ // failure but some work already done
+			printf ( "%s %lu\n", ( char * ) value, strlen ( ( char * ) value ) );
+		}
+	}
+
+	if ( value )
+	{
+		free ( value );
+		value = NULL;
+	}
+
+
+
+	if ( data )
+	{
+		jsonFree ( &data, dataLength );
+		dataLength = 0;
+	}
+
+
+	jsonParseString ( "{}", &data, &dataLength );
+
+	jsonSet ( data, 0, "bob", &bob, jT ( uint8_t ) );
+	jsonSet ( data, 0, "alice", &alice, jT ( uint8_t ) );
+	jsonSet ( data, 0, "alice", "au pays de merveilles", jT ( str ) );
+
+	jsonSetObj ( &data, 0, "mike", jT ( obj ), &dataLength );
+
+	jsonSet ( data, dataLength - 1, "alice2", &alice2, jT ( uint8_t ) );
+	jsonSet ( data, dataLength - 1, "alice3", &test, jT ( float ) );
+	jsonSetObj ( &data, dataLength - 1, "array", jT ( array ), &dataLength );
+	jsonSet ( data, dataLength - 1, NULL, &test, jT ( float ) );
+
+	jsonPrint ( data, 0, 0 );
+
+	// ici on change une donn
+	if ( jsonGetRecursive ( data, 0, "array", &value, &type ) )
+	{
+		jsonSet ( data, dataLength - 1, NULL, &test, jT ( ptrFloat ) );
+		if ( type == jT ( array ) ||
+			type == jT ( obj ) )
+		{
+			jsonPrint ( data, *(uint32_t*)value, 0 );
+		}
+		test = 17.0;
+		if ( type == jT ( array ) ||
+			type == jT ( obj ) )
+		{
+			jsonPrint ( data, *(uint32_t*)value, 0 );
+		}
+	}
+
+	jsonFree ( &data, dataLength );
+	dataLength = 0;
+
+	return ( 0 );
+}
