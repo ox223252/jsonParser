@@ -115,7 +115,6 @@ static uint32_t jsonParseObject ( const char * content, uint32_t * const content
 			{
 				do
 				{
-
 					// remove '{' or ','
 					(*contentId)++;
 
@@ -648,10 +647,10 @@ uint32_t jsonPrintFile ( json_el * const data, const uint32_t id, const uint8_t 
 		return ( __LINE__ );
 	}
 
-	if ( indent > 2 )
-	{
-		return ( 0 );
-	}
+	// if ( indent > 2 )
+	// {
+	// 	return ( 0 );
+	// }
 
 	if ( !indent )
 	{
@@ -1293,6 +1292,7 @@ void * jsonGet ( const json_el * const data, const uint32_t id, const char * con
 			return ( *value );
 		}
 	}
+
 	return ( NULL );
 }
 
@@ -1304,7 +1304,8 @@ void * jsonGetRecursive ( const json_el * const data, const uint32_t id, const c
 
 	for ( i = 0; i < data[ id ].length; i++ )
 	{
-		if ( !strcmp ( data[ id ].key[ i ], key ) )
+		if ( data[ id ].key &&
+			!strcmp ( data[ id ].key[ i ], key ) )
 		{
 			if ( type )
 			{ // if type pointer defined return type value
@@ -1319,9 +1320,10 @@ void * jsonGetRecursive ( const json_el * const data, const uint32_t id, const c
 			*value = data[ id ].value[ i ];
 			return ( *value );
 		}
-		else if ( data[ id ].type[ i ] == jT ( obj ) )
+		else if ( ( data[ id ].type[ i ] == jT ( obj ) ) ||
+			( data[ id ].type[ i ] == jT ( array ) ) )
 		{
-			tmp = jsonGet ( data, *( uint32_t * )data[ id ].value[ i ], key, value, type );
+			tmp = jsonGetRecursive ( data, *( uint32_t * )data[ id ].value[ i ], key, value, type );
 
 			if ( tmp )
 			{
