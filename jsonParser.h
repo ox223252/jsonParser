@@ -67,10 +67,12 @@ typedef enum
 
 typedef struct __json_el
 {
-	char **key;           ///<
-	void **value;         ///<
-	uint8_t *type;        ///<
-	uint32_t length;      ///<
+	char **key;           ///< table of string, if no key tablea available it's
+		/// an array
+	void **value;         ///< table of pointer on memory used to store data
+	uint8_t *type;        ///< type of data stored in associated memory
+	uint32_t length;      ///< size of object, number of key:value stored in
+		/// object
 }
 json_el;
 
@@ -158,6 +160,12 @@ uint32_t jsonFree ( json_el ** data, uint32_t length );
 /// \param[ in ] value: a pointer on the found object value,
 /// \param[ in ] type: the type of object value
 /// \brief that will parse only the provided object level
+/// \note if the type object is array or obj then the &value will be the index
+///     of the object in the main data space. For exemple in the json :
+///     [1,2,3,4,"a":{}], if you seach "a", value will be set to 1 even if it's
+///     this fourth item of the json, in memory it's stored at second place. 
+///     That mean if you want to manipulate obj "a", you should manipulate 
+///     data[1]
 ////////////////////////////////////////////////////////////////////////////////
 void * jsonGet ( const json_el * const data, const uint32_t id, 
 	const char * const key, void ** const value, JSON_TYPE * const type );
@@ -172,6 +180,12 @@ void * jsonGet ( const json_el * const data, const uint32_t id,
 /// \param[ in ] type: the type of object value
 /// \brief that will parse all obj to found the first element with this key
 /// \return NULL if key not found else pointer on value
+/// \note if the type object is array or obj then the &value will be the index
+///     of the object in the main data space. For exemple in the json :
+///     [1,2,3,4,"a":{}], if you seach "a", value will be set to 1 even if it's
+///     this fourth item of the json, in memory it's stored at second place. 
+///     That mean if you want to manipulate obj "a", you should manipulate 
+///     data[1]
 ////////////////////////////////////////////////////////////////////////////////
 void * jsonGetRecursive ( const json_el * const data, const uint32_t id, 
 	const char * const key, void ** const value, JSON_TYPE * const type );
