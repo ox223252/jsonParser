@@ -274,7 +274,7 @@ static uint32_t jsonParseObject ( const char * content, uint32_t * const content
 								tmp = NULL;
 
 
-								*( uint8_t * )( (*out)[ numObj ].value[ nextValueId ] ) = ( strcmp ( "true", str )?1:0 );
+								*( uint8_t * )( (*out)[ numObj ].value[ nextValueId ] ) = ( strcmp ( "true", str )?0:1 );
 								(*contentId) += strlen ( str );
 							}
 							else if ( ( ( content [ *contentId ] >= '0' ) &&
@@ -1276,7 +1276,8 @@ void * jsonGet ( const json_el * const data, const uint32_t id, const char * con
 
 	for ( i = 0; i < data[ id ].length; i++ )
 	{
-		if ( !strcmp ( data[ id ].key[ i ], key ) )
+		if ( data[ id ].key &&
+			!strcmp ( data[ id ].key[ i ], key ) )
 		{
 			if ( type )
 			{ // if type pointer defined return type value
