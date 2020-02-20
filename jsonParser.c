@@ -1274,6 +1274,11 @@ void * jsonGet ( const json_el * const data, const uint32_t id, const char * con
 {
 	uint32_t i = 0;
 
+	if ( !data )
+	{
+		return ( NULL );
+	}
+
 	for ( i = 0; i < data[ id ].length; i++ )
 	{
 		if ( data[ id ].key &&
