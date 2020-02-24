@@ -1345,7 +1345,8 @@ uint32_t jsonSet ( json_el * const data, const uint32_t id, const char * const k
 	uint32_t elID = 0;
 	void * tmp = NULL;
 
-	if ( ( type == jT ( obj ) ) ||
+	if ( !data ||
+		( type == jT ( obj ) ) ||
 		( type == jT ( array ) ) )
 	{
 		errno = EINVAL;
