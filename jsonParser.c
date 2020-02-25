@@ -426,10 +426,57 @@ static uint32_t jsonVerifyFormat ( char * const str, uint64_t * const strSize )
 	return ( 0 );
 }
 
+// static uint32_t jsonRemoveSpaces ( char * const str, uint64_t * const strSize )
+// {
+// 	uint64_t i = 0; // loop counter
+// 	uint64_t j = 0; // loop counter
+// 	uint8_t string = 0; // flag to store if char is in string or not
+
+// 	if ( !str ||
+// 		!strSize )
+// 	{
+// 		errno = EINVAL;
+// 		return ( __LINE__ );
+// 	}
+
+// 	// remove useless bytes (space/tab/newlines)
+// 	for ( i = (*strSize) - 1; i > 0; i-- )
+// 	{
+// 		if ( string &&
+// 			str[ i ] != '"' )
+// 		{ // if it's a string don't remove space or brake line
+// 			continue;
+// 		}
+
+// 		if ( str[ i ] == '"' )
+// 		{ // if it's beging or end of string store information
+// 			if ( string &&
+// 				( str[ i -1 ] == '\\' ) )
+// 			{
+// 				continue;
+// 			}
+// 			string ^= 0x01;
+// 			continue;
+// 		}
+
+// 		if ( ( str[ i ] == ' ' ) ||
+// 			( str[ i ] == '\n' ) ||
+// 			( str[ i ] == '\r' ) ||
+// 			( str[ i ] == '\t' ) )
+// 		{ // else remove space, brake line, or tab
+// 			for ( j = i; j < (*strSize) - 1; j++ )
+// 			{
+// 				str[ j ] = str[ j + 1 ];
+// 			}
+// 			str[ j ] = '\0';
+// 			(*strSize)--;
+// 		}
+// 	}
+// 	return ( 0 );
+// }
+
 static uint32_t jsonRemoveSpaces ( char * const str, uint64_t * const strSize )
 {
-	uint64_t i = 0; // loop counter
-	uint64_t j = 0; // loop counter
 	uint8_t string = 0; // flag to store if char is in string or not
 
 	if ( !str ||
@@ -440,7 +487,7 @@ static uint32_t jsonRemoveSpaces ( char * const str, uint64_t * const strSize )
 	}
 
 	// remove useless bytes (space/tab/newlines)
-	for ( i = (*strSize) - 1; i > 0; i-- )
+	for ( uint64_t i = (*strSize) - 1; i > 0; i-- )
 	{
 		if ( string &&
 			str[ i ] != '"' )
@@ -464,16 +511,54 @@ static uint32_t jsonRemoveSpaces ( char * const str, uint64_t * const strSize )
 			( str[ i ] == '\r' ) ||
 			( str[ i ] == '\t' ) )
 		{ // else remove space, brake line, or tab
-			for ( j = i; j < (*strSize) - 1; j++ )
-			{
-				str[ j ] = str[ j + 1 ];
-			}
-			str[ j ] = '\0';
-			(*strSize)--;
+			str[ i ] = -1;
 		}
+	}
+
+
+	uint64_t offset = 0;
+	for ( uint64_t i = 0; i < (*strSize) - offset; i++ )
+	{
+		while ( str[ i + offset ] == -1 )
+		{
+			offset++;
+
+		}
+		
+		if ( offset == 0 )
+		{
+			continue;
+		}
+
+		str[ i ] = str[ i + offset ];
+	}
+
+	if ( offset )
+	{
+		*strSize -= offset;
+		str[ *strSize ] = '\0';
 	}
 	return ( 0 );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 static uint32_t jsonFreeOne ( json_el * const data, uint32_t id )
 {
