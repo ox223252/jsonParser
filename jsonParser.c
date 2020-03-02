@@ -1822,7 +1822,7 @@ int __attribute__((weak)) main ( void )
 		{ // normal case on failure
 			if ( value )
 			{ // failure but some work already done
-				printf ( "%s %u\n", ( char * ) value, strlen ( ( char * ) value ) );
+				printf ( "%s %lu\n", ( char * ) value, strlen ( ( char * ) value ) );
 			}
 		}
 
